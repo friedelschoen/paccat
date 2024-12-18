@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"io"
+	"path"
 )
 
 //go:generate pigeon -o parser.go recipe.peg
@@ -72,8 +73,8 @@ func (value attrGetter) Wrap() (Buildable, error) {
 	}, nil
 }
 
-func ParseRecipe(name string, reader io.Reader) (*Recipe, error) {
-	result, err := ParseReader(name, reader)
+func ParseRecipe(filename string, reader io.Reader) (*Recipe, error) {
+	result, err := ParseReader(filename, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +91,7 @@ func ParseRecipe(name string, reader io.Reader) (*Recipe, error) {
 	}
 
 	return &Recipe{
+		Directory:         path.Dir(filename),
 		RequireAttributes: reqAttrs,
 		Attributes:        attrs,
 	}, nil

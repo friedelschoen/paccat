@@ -10,6 +10,7 @@ import (
 )
 
 type Context struct {
+	directory     string
 	currentRecipe *Recipe
 	attributes    map[string]Buildable
 

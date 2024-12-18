@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 )
 
 type RecipeFunction struct {
@@ -30,10 +31,12 @@ func (this *RecipeFunction) Build(ctx *Context) (string, error) {
 	fmt.Printf("attr: %s!\n", attr)
 	ctx.nextAttribute = nil
 
-	path, err := this.Path.Build(ctx)
+	filename, err := this.Path.Build(ctx)
 	if err != nil {
 		return "", err
 	}
+
+	path := path.Join(ctx.directory, filename)
 
 	file, err := os.Open(path)
 	if err != nil {

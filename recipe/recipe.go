@@ -6,6 +6,7 @@ import (
 
 type Recipe struct {
 	Attributes, RequireAttributes map[string]Buildable
+	Directory                     string
 }
 
 func (this *Recipe) String() string {
@@ -15,6 +16,7 @@ func (this *Recipe) String() string {
 func (this *Recipe) Build(buildAttr string, forceOutput bool, params map[string]Buildable) (string, error) {
 	ctx := Context{
 		currentRecipe: this,
+		directory:     this.Directory,
 		attributes:    this.Attributes,
 	}
 
