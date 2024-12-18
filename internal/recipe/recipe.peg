@@ -8,12 +8,6 @@ Recipe <- require:Require? _ lines:Lines _ EOF {
         result.RequireAttributes = map[string]Buildable{}
     }
 
-	// attrs := make([]pair, 0, len(lines.([]pair)))
-	// for _, t := range lines.([]any) {
-	//	if t != nil {
-	//		attrs = append(attrs, t.(pair))
-	// 	}
-	// }
 	result.Attributes = collectPairs(lines.([]pair))
 
 	return result, nil

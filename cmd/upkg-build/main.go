@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"friedelschoen.io/upkg/recipe"
+	"friedelschoen.io/upkg/internal/recipe"
 )
 
 func makeSymlink(result string) error {
