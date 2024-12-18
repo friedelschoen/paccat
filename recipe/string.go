@@ -11,7 +11,6 @@ type RecipeStringLiteral struct {
 
 type RecipeString struct {
 	Elements []Buildable
-	Previous string
 }
 
 func (this *RecipeStringLiteral) String() string {

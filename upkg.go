@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	"friedelschoen.io/upkg/recipe"
 )
@@ -35,18 +36,13 @@ func main() {
 		log.Fatal("usage: upkg <recipe>")
 	}
 
-	file, err := os.Open(os.Args[1])
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
-	got, err := recipe.ParseRecipe(os.Args[1], file)
+	ast, err := recipe.ParseFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	result, err := got.Build("build", true, nil)
+	ctx, err := ast.(*recipe.Recipe).NewContext(path.Dir(os.Args[1]), nil)
+	result, err := ctx.Get("build", true)
 	if err != nil {
 		log.Fatal("error while building: ", err)
 	}

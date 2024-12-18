@@ -1,33 +1,17 @@
 package recipe
 
-import "strings"
+//go:generate pigeon -o parser.go recipe.peg
 
-type Wrappable interface {
-	Wrap() (Buildable, error)
-}
-
-type recipe struct {
-	require, values []pair
-}
+import (
+	"log"
+	"reflect"
+	"strings"
+)
 
 type pair struct {
-	key   key
-	value Wrappable
+	key   string
+	value Buildable
 }
-
-type functionCall struct {
-	path   Wrappable
-	params []pair
-}
-
-type attrGetter struct {
-	call Wrappable
-	attr key
-}
-
-type key string
-type recipeString []any
-type recipeLiteral string
 
 func asString(val any) string {
 	builder := strings.Builder{}
@@ -37,23 +21,28 @@ func asString(val any) string {
 	return builder.String()
 }
 
-func makeString(val any) recipeString {
+func makeString(val any) *RecipeString {
 	builder := strings.Builder{}
-	result := make([]any, 0)
+	result := make([]Buildable, 0)
 	for _, content := range val.([]any) {
-		if chars, ok := content.([]byte); ok {
-			builder.Write(chars)
-		} else if builder.Len() > 0 {
-			result = append(result, recipeLiteral(builder.String()), content)
-			builder.Reset()
-		} else {
-			result = append(result, content)
+		switch element := content.(type) {
+		case []byte:
+			builder.Write(element)
+		case Buildable:
+			if builder.Len() > 0 {
+				result = append(result, &RecipeStringLiteral{builder.String()}, element)
+				builder.Reset()
+			} else {
+				result = append(result, element)
+			}
+		default:
+			log.Panicf("unexpected element: %v\n", reflect.TypeOf(element))
 		}
 	}
 	if builder.Len() > 0 {
-		result = append(result, recipeLiteral(builder.String()))
+		result = append(result, &RecipeStringLiteral{builder.String()})
 	}
-	return recipeString(result)
+	return &RecipeString{result}
 }
 
 // Combine head and tail into a single slice
@@ -69,7 +58,17 @@ func headTail[T any](head any, tail []any) []T {
 func toAnySlice[T any](input []any) []T {
 	result := make([]T, len(input))
 	for i, e := range input {
-		result[i] = e.(T)
+		if e != nil {
+			result[i] = e.(T)
+		}
+	}
+	return result
+}
+
+func collectPairs(pairs []pair) map[string]Buildable {
+	result := make(map[string]Buildable)
+	for _, keyvalue := range pairs {
+		result[keyvalue.key] = keyvalue.value
 	}
 	return result
 }

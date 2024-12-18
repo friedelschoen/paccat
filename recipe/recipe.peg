@@ -1,49 +1,54 @@
 { package recipe }
 
-Recipe <- require:Require? _ head:(val:Pair? _ NL { return val, nil })* tail:Pair? _ EOF { 
-    reqattrs := []pair{}
-    if require != nil {
-        reqattrs = require.([]pair)
+Recipe <- require:Require? _ lines:Lines _ EOF {
+	result := &Recipe{}
+    if require != nil{
+        result.RequireAttributes = collectPairs(require.([]pair))
+    } else {
+        result.RequireAttributes = map[string]Buildable{}
     }
 
-    headlist := head.([]any)
+	// attrs := make([]pair, 0, len(lines.([]pair)))
+	// for _, t := range lines.([]any) {
+	//	if t != nil {
+	//		attrs = append(attrs, t.(pair))
+	// 	}
+	// }
+	result.Attributes = collectPairs(lines.([]pair))
 
-	attrs := make([]pair, 0, len(headlist))
-	for _, t := range headlist {
-		if t != nil {
-			attrs = append(attrs, t.(pair))
-		}
+	return result, nil
+}
+
+Lines <- head:(val:Pair? _ NL { return val, nil })* tail:Pair? {
+	slc := toAnySlice[pair](head.([]any))
+    if tail == nil {
+		return slc, nil
 	}
 
-    if tail != nil {
-        attrs = append(attrs, tail.(pair))
-    }
-
-    return recipe{reqattrs, attrs}, nil
+	return append(slc, tail.(pair)), nil
 }
 
 Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return val, nil })* _ "]" _ NL {
     return headTail[pair](head, tail.([]any)), nil
 }
 
-RequireContent <- ky:Key _ "=" _ value:Value { return pair{ky.(key), value.(Wrappable)}, nil }
-                / ky:Key { return pair{ky.(key), nil}, nil }
+RequireContent <- ky:Key _ "=" _ value:Value { return pair{ky.(string), value.(Buildable)}, nil }
+                / ky:Key { return pair{ky.(string), nil}, nil }
 
-Key <- val:[a-zA-Z0-9_]+ { return key(asString(val)), nil }
+Key <- val:[a-zA-Z0-9_]+ { return asString(val), nil }
 
-Pair <- ky:Key _ "=" _ value:Value { return pair{ky.(key), value.(Wrappable)}, nil }
+Pair <- ky:Key _ "=" _ value:Value { return pair{ky.(string), value.(Buildable)}, nil }
 
-Path <- val:[^ [\]]+ { return recipeLiteral(asString(val)), nil }
-      / String
+Path <- val:[^ [\]]+ {	return &RecipeStringLiteral{asString(val)}, nil }
 
 AttributeGetter <- "->" val:Key { return val, nil }
 
-FunctionCall <- "[" _ path:Path params:FunctionParams? _ "]" attr:AttributeGetter? { 
-    call := functionCall{path.(Wrappable), toAnySlice[pair](params.([]any))}
-    if attr == nil {
-        return call, nil
-    }
-    return attrGetter{call, attr.(key)}, nil
+FunctionCall <- "[" _ path:(Path / String) params:FunctionParams? _ "]" attr:AttributeGetter? { 
+	call := &RecipeFunction{path.(Buildable), collectPairs(toAnySlice[pair](params.([]any)))}
+	if attr == nil {
+		return call, nil
+	}
+	return &RecipeGetter{call, attr.(string)}, nil
 }
 
 FunctionParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
@@ -61,10 +66,10 @@ MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. { return chr, nil
 StringInterpolation <- "${" _ val:StringValue _ "}" { return val, nil }
 
 StringValue <- ky:Key attr:AttributeGetter? {
-    if attr == nil {
-        return ky, nil
-    }
-    return attrGetter{ky.(Wrappable), attr.(key)}, nil
+	if attr == nil {
+		return &RecipeReference{ky.(string)}, nil
+	}
+	return &RecipeGetter{&RecipeReference{ky.(string)}, attr.(string)}, nil
 }
 
 NL <- "\n" / "\r\n"

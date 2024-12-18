@@ -3,7 +3,6 @@ package recipe
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path"
 )
 
@@ -36,18 +35,16 @@ func (this *RecipeFunction) Build(ctx *Context) (string, error) {
 		return "", err
 	}
 
-	path := path.Join(ctx.directory, filename)
-
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	got, err := ParseRecipe(path, file)
+	pathname := path.Join(ctx.directory, filename)
+	recipe, err := ParseFile(pathname)
 	if err != nil {
 		return "", err
 	}
 
-	return got.Build(attr, true, this.Parameters)
+	newContex, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.Parameters)
+	if err != nil {
+		return "", err
+	}
+
+	return newContex.Get(attr, false)
 }
