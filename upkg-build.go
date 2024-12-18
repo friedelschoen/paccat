@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -32,23 +33,34 @@ func makeSymlink(result string) error {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("usage: upkg <recipe>")
+	evaluate := flag.Bool("evaluate", false, "Evaluate any value")
+	attribute := flag.String("attribute", "build", "Attribute to evaluate")
+	noResult := flag.Bool("no-result", false, "Don't symlink to ./result")
+
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		flag.Usage()
 	}
 
-	ast, err := recipe.ParseFile(os.Args[1])
+	filepath := flag.Arg(0)
+
+	ast, err := recipe.ParseFile(filepath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ctx, err := ast.(*recipe.Recipe).NewContext(path.Dir(os.Args[1]), nil)
-	result, err := ctx.Get("build", true)
+	ctx, err := ast.(*recipe.Recipe).NewContext(path.Dir(filepath), nil)
+	result, err := ctx.Get(*attribute, !*evaluate)
+
 	if err != nil {
 		log.Fatal("error while building: ", err)
 	}
 	fmt.Println(result)
 
-	if err = makeSymlink(result); err != nil {
-		log.Print(err)
+	if !*evaluate && !*noResult {
+		if err = makeSymlink(result); err != nil {
+			log.Print(err)
+		}
 	}
 }
