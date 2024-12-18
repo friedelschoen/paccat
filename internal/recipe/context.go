@@ -2,29 +2,28 @@ package recipe
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"friedelschoen.io/upkg/internal/util"
 )
 
 type Context struct {
 	directory     string
 	currentRecipe *Recipe
 	attributes    map[string]Buildable
-
-	// used by FunctionCall
 	nextAttribute *string
+	building      bool
 }
 
 func createOutDir(name string) string {
 	nametime := fmt.Sprintf("%s-%d", name, time.Now().UnixMilli())
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path.Join(os.TempDir(), "upkg", nametime)
-	}
-	return path.Join(home, ".upkg", nametime)
+	return path.Join(util.GetCachedir(), nametime)
 }
 
 func createWorkdir(name string) string {
@@ -39,17 +38,15 @@ func createWorkdir(name string) string {
 func (this *Context) Get(key string, forceOutput bool) (string, error) {
 	value, ok := this.attributes[key]
 	if !ok {
-		return "", fmt.Errorf("`%s` not found in current context", key)
+		return "", NoAttributeError
 	}
 
 	if !value.HasOutput() {
 		if forceOutput {
-			return "", fmt.Errorf("recipe did not produce output")
+			return "", NoOutputError
 		}
 		return value.Build(this)
 	}
-
-	fmt.Println("output!")
 
 	name, err := this.Get("name", false)
 	if err != nil {
@@ -67,7 +64,7 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 
 	script, err := value.Build(this)
 	if err != nil {
-		return "", fmt.Errorf("error while fetching '%s': %v", key, err)
+		return "", err
 	}
 
 	fmt.Printf("script: '%v'\n", script)
@@ -82,4 +79,73 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 		return "", err
 	}
 	return outdir, nil
+}
+
+func installPath(pathname string) error {
+	target := "target"
+
+	return filepath.Walk(pathname, func(currentPath string, info fs.FileInfo, err error) error {
+		relPath, err := filepath.Rel(pathname, currentPath)
+		if err != nil {
+			return err
+		}
+
+		targetPath := path.Join(target, relPath)
+
+		if info.IsDir() {
+			fmt.Printf("mkdir %s\n", targetPath)
+			os.Mkdir(targetPath, info.Mode())
+		} else {
+			fmt.Printf("symlink %s -> %s\n", currentPath, targetPath)
+			os.Symlink(currentPath, targetPath)
+		}
+		return nil
+	})
+}
+
+func (this *Context) BuildPackage() (string, error) {
+	this.building = true
+	defer func() {
+		this.building = false
+	}()
+
+	buildDepends, err := this.Get("build_depends", false)
+	if err != nil && err != NoAttributeError {
+		return "", err
+	}
+
+	if err == nil {
+		for _, dep := range strings.Split(buildDepends, " ") {
+			err := installPath(dep)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	result, err := this.Get("build", true)
+	if err != nil {
+		return "", err
+	}
+
+	err = installPath(result)
+	if err != nil {
+		return "", err
+	}
+
+	runDepends, err := this.Get("depends", false)
+	if err != nil && err != NoAttributeError {
+		return "", err
+	}
+
+	if err == nil {
+		for _, dep := range strings.Split(runDepends, " ") {
+			err := installPath(dep)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	return result, nil
 }

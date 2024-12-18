@@ -56,6 +56,10 @@ func main() {
 	}
 
 	ctx, err := ast.(*recipe.Recipe).NewContext(path.Dir(filepath), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	result, err := ctx.Get(*attribute, !*evaluate)
 
 	if err != nil {

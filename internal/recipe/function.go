@@ -1,7 +1,6 @@
 package recipe
 
 import (
-	"errors"
 	"fmt"
 	"path"
 )
@@ -22,13 +21,9 @@ func (this *RecipeFunction) HasOutput() bool {
 }
 
 func (this *RecipeFunction) Build(ctx *Context) (string, error) {
-	if ctx.nextAttribute == nil {
-		return "", errors.New("function mentioned without getter")
+	if ctx.nextAttribute == nil && !ctx.building {
+		return "", NoGetterError
 	}
-
-	attr := *ctx.nextAttribute
-	fmt.Printf("attr: %s!\n", attr)
-	ctx.nextAttribute = nil
 
 	filename, err := this.Path.Build(ctx)
 	if err != nil {
@@ -46,5 +41,12 @@ func (this *RecipeFunction) Build(ctx *Context) (string, error) {
 		return "", err
 	}
 
-	return newContex.Get(attr, false)
+	if ctx.nextAttribute == nil {
+		return newContex.BuildPackage()
+	} else {
+		attr := *ctx.nextAttribute
+		ctx.nextAttribute = nil
+
+		return newContex.Get(attr, false)
+	}
 }
