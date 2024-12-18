@@ -36,11 +36,16 @@ func main() {
 	evaluate := flag.Bool("evaluate", false, "Evaluate any value")
 	attribute := flag.String("attribute", "build", "Attribute to evaluate")
 	noResult := flag.Bool("no-result", false, "Don't symlink to ./result")
-
+	flag.BoolFunc("help", "prints help-message", func(string) error {
+		flag.Usage()
+		os.Exit(0)
+		return nil
+	})
 	flag.Parse()
 
 	if flag.NArg() != 1 {
 		flag.Usage()
+		os.Exit(1)
 	}
 
 	filepath := flag.Arg(0)
