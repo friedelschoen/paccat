@@ -1,0 +1,76 @@
+{ package recipe }
+
+Recipe <- require:Require? _ head:(val:Pair? _ NL { return val, nil })* tail:Pair? _ EOF { 
+    reqattrs := []pair{}
+    if require != nil {
+        reqattrs = require.([]pair)
+    }
+
+    headlist := head.([]any)
+
+	attrs := make([]pair, 0, len(headlist))
+	for _, t := range headlist {
+		if t != nil {
+			attrs = append(attrs, t.(pair))
+		}
+	}
+
+    if tail != nil {
+        attrs = append(attrs, tail.(pair))
+    }
+
+    return recipe{reqattrs, attrs}, nil
+}
+
+Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return val, nil })* _ "]" _ NL {
+    return headTail[pair](head, tail.([]any)), nil
+}
+
+RequireContent <- ky:Key _ "=" _ value:Value { return pair{ky.(key), value.(Wrappable)}, nil }
+                / ky:Key { return pair{ky.(key), nil}, nil }
+
+Key <- val:[a-zA-Z0-9_]+ { return key(asString(val)), nil }
+
+Pair <- ky:Key _ "=" _ value:Value { return pair{ky.(key), value.(Wrappable)}, nil }
+
+Path <- val:[^ [\]]+ { return recipeLiteral(asString(val)), nil }
+      / String
+
+AttributeGetter <- "->" val:Key { return val, nil }
+
+FunctionCall <- "[" _ path:Path params:FunctionParams? _ "]" attr:AttributeGetter? { 
+    call := functionCall{path.(Wrappable), toAnySlice[pair](params.([]any))}
+    if attr == nil {
+        return call, nil
+    }
+    return attrGetter{call, attr.(key)}, nil
+}
+
+FunctionParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
+    return headTail[any](head, tail.([]any)), nil
+}
+
+Value <- val:( String / Multiline / FunctionCall ) _ { return val, nil }
+
+String <- '"' content:StringContent+ '"' { return makeString(content), nil }
+Multiline <- "\"\"" content:MultilineContent* "\"\"" { return makeString(content), nil }
+
+StringContent <- StringInterpolation / !"${" chr:[^"\n\r] { return chr, nil }
+MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. { return chr, nil })
+
+StringInterpolation <- "${" _ val:StringValue _ "}" { return val, nil }
+
+StringValue <- ky:Key attr:AttributeGetter? {
+    if attr == nil {
+        return ky, nil
+    }
+    return attrGetter{ky.(Wrappable), attr.(key)}, nil
+}
+
+NL <- "\n" / "\r\n"
+WS <- [ \t]
+
+_ "whitespace" <- (Comment / WS)*
+Comment "comment" <- "#" [^\n\r]+ &(NL / EOF)
+
+EOF <- !.

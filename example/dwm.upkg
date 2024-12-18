@@ -1,0 +1,9 @@
+name = "dwm"
+
+workdir = [ fetch.upkg url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z" ]
+
+build = ""
+    cd ${workdir->build}/dwm-6.5
+    make
+    make PREFIX=${out} install
+""
