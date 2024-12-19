@@ -26,16 +26,27 @@ Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return
     return headTail[pair](head, tail.([]any)), nil
 }
 
-RequireContent <- ky:Key _ "=" _ value:Value { return pair{ky.(string), value.(Buildable)}, nil }
-                / ky:Key { return pair{ky.(string), nil}, nil }
+RequireContent <- key:Key _ "=" _ value:Value { 
+    return pair{key.(string), value.(Buildable)}, nil 
+} / key:Key {
+    return pair{key.(string), nil}, nil
+}
 
-Key <- val:[a-zA-Z0-9_]+ { return asString(val), nil }
+Key <- val:[a-zA-Z0-9_]+ { 
+    return asString(val), nil
+}
 
-Pair <- ky:Key _ "=" _ value:Value { return pair{ky.(string), value.(Buildable)}, nil }
+Pair <- key:Key _ "=" _ value:Value {
+    return pair{key.(string), value.(Buildable)}, nil
+}
 
-Path <- val:[^ [\]]+ {	return &RecipeStringLiteral{asString(val)}, nil }
+Path <- val:[^ [\]]+ {
+    return &RecipeStringLiteral{asString(val)}, nil 
+}
 
-AttributeGetter <- "->" val:Key { return val, nil }
+AttributeGetter <- "->" val:Key {
+    return val, nil
+}
 
 FunctionCall <- "[" _ path:(Path / String) params:FunctionParams? _ "]" attr:AttributeGetter? { 
 	pairs := map[string]Buildable{}
@@ -59,19 +70,30 @@ List <- "{" values:((WS / NL)* val:Value { return val, nil })* (WS / NL)* "}" {
 	return &RecipeList{toAnySlice[Buildable](values.([]any))}, nil
 }
 
-String <- '"' content:StringContent+ '"' { return makeString(content), nil }
-Multiline <- "\"\"" content:MultilineContent* "\"\"" { return makeString(content), nil }
+String <- '"' content:StringContent+ '"' { 
+    return makeString(content), nil
+}
+Multiline <- "\"\"" content:MultilineContent* "\"\"" {
+    return makeString(content), nil
+}
 
-StringContent <- StringInterpolation / !"${" chr:[^"\n\r] { return chr, nil }
-MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. { return chr, nil })
+StringContent <- StringInterpolation / !"${" chr:[^"\n\r] { // syntax highlighting is fukkie wukkie -> "
+    return chr, nil
+}
 
-StringInterpolation <- "${" _ val:StringValue _ "}" { return val, nil }
+MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. {
+    return chr, nil
+})
 
-StringValue <- ky:Key attr:AttributeGetter? {
+StringInterpolation <- "${" _ val:StringValue _ "}" {
+    return val, nil
+}
+
+StringValue <- key:Key attr:AttributeGetter? {
 	if attr == nil {
-		return &RecipeReference{ky.(string)}, nil
+		return &RecipeReference{key.(string)}, nil
 	}
-	return &RecipeGetter{&RecipeReference{ky.(string)}, attr.(string)}, nil
+	return &RecipeGetter{&RecipeReference{key.(string)}, attr.(string)}, nil
 }
 
 NL <- "\n" / "\r\n"

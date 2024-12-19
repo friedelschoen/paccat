@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"log"
@@ -9,6 +10,9 @@ import (
 
 	"friedelschoen.io/paccat/internal/recipe"
 )
+
+//go:embed cat.txt
+var logo string
 
 func makeSymlink(result string) error {
 	// Check if the file or directory exists
@@ -33,10 +37,12 @@ func makeSymlink(result string) error {
 }
 
 func main() {
-	evaluate := flag.Bool("evaluate", false, "Evaluate any value")
-	attribute := flag.String("attribute", "build", "Attribute to evaluate")
-	noResult := flag.Bool("no-result", false, "Don't symlink to ./result")
+	install := flag.Bool("install", false, "Build the package")
+	evaluate := flag.String("evaluate", "", "Evaluate attribute")
+	noResult := flag.Bool("no-result", false, "Don't expect a path")
+
 	flag.BoolFunc("help", "prints help-message", func(string) error {
+		fmt.Print(logo)
 		flag.Usage()
 		os.Exit(0)
 		return nil
@@ -60,16 +66,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	result, err := ctx.Get(*attribute, !*evaluate)
-
-	if err != nil {
-		log.Fatal("error while building: ", err)
-	}
-	fmt.Println(result)
-
-	if !*evaluate && !*noResult {
-		if err = makeSymlink(result); err != nil {
-			log.Print(err)
+	if *install {
+		ctx.BuildPackage()
+		if err != nil {
+			log.Fatal("error while building: ", err)
 		}
+	} else if *evaluate != "" {
+		result, err := ctx.Get(*evaluate, *noResult)
+
+		if err != nil {
+			log.Fatal("error while building: ", err)
+		}
+		fmt.Println(result)
+
+		if !*noResult {
+			if err = makeSymlink(result); err != nil {
+				log.Print(err)
+			}
+		}
+	} else {
+		fmt.Printf("no operation\n")
 	}
 }
