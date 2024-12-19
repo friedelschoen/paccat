@@ -38,7 +38,11 @@ Path <- val:[^ [\]]+ {	return &RecipeStringLiteral{asString(val)}, nil }
 AttributeGetter <- "->" val:Key { return val, nil }
 
 FunctionCall <- "[" _ path:(Path / String) params:FunctionParams? _ "]" attr:AttributeGetter? { 
-	call := &RecipeFunction{path.(Buildable), collectPairs(toAnySlice[pair](params.([]any)))}
+	pairs := map[string]Buildable{}
+	if params != nil {
+		pairs = collectPairs(toAnySlice[pair](params.([]any)))
+	}
+	call := &RecipeFunction{path.(Buildable), pairs}
 	if attr == nil {
 		return call, nil
 	}
@@ -49,7 +53,11 @@ FunctionParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
     return headTail[any](head, tail.([]any)), nil
 }
 
-Value <- val:( String / Multiline / FunctionCall ) _ { return val, nil }
+Value <- List / String / Multiline / FunctionCall
+
+List <- "{" values:((WS / NL)* val:Value { return val, nil })* (WS / NL)* "}" { 
+	return &RecipeList{toAnySlice[Buildable](values.([]any))}, nil
+}
 
 String <- '"' content:StringContent+ '"' { return makeString(content), nil }
 Multiline <- "\"\"" content:MultilineContent* "\"\"" { return makeString(content), nil }

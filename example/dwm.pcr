@@ -1,9 +1,13 @@
 name = "dwm"
 
-workdir = [ fetch.paccat url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z" ]
+workdir = [ fetch.pcr url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z" ]
+
+build_depends = {
+    [ textselect.pcr ]
+}
 
 build = ""
-    cd ${workdir->build}/dwm-6.5
+    cd ${workdir}/dwm-6.5
     make
     make PREFIX=${out} install
 ""
