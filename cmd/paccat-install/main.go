@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"friedelschoen.io/upkg/internal/recipe"
+	"friedelschoen.io/paccat/internal/recipe"
 )
 
 func main() {

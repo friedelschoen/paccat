@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"friedelschoen.io/upkg/internal/util"
+	"friedelschoen.io/paccat/internal/util"
 )
 
 type Context struct {
@@ -30,9 +30,9 @@ func createWorkdir(name string) string {
 	nametime := fmt.Sprintf("%s-%d", name, time.Now().UnixMilli())
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return path.Join(os.TempDir(), "upkg", nametime)
+		return path.Join(os.TempDir(), "paccat", nametime)
 	}
-	return path.Join(home, ".upkg", nametime)
+	return path.Join(home, ".paccat", nametime)
 }
 
 func (this *Context) Get(key string, forceOutput bool) (string, error) {
@@ -54,7 +54,7 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 	}
 
 	outdir := createOutDir(name)
-	workdir, err := os.MkdirTemp(os.TempDir(), "upkg-workdir-******")
+	workdir, err := os.MkdirTemp(os.TempDir(), "paccat-workdir-******")
 	if err != nil {
 		return "", err
 	}
