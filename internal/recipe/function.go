@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"fmt"
+	"hash/maphash"
 	"path"
 )
 
@@ -48,5 +49,13 @@ func (this *RecipeFunction) Build(ctx *Context) (string, error) {
 		ctx.nextAttribute = nil
 
 		return newContex.Get(attr, false)
+	}
+}
+
+func (this *RecipeFunction) WriteHash(hash maphash.Hash) {
+	this.Path.WriteHash(hash)
+	for key, value := range this.Parameters {
+		hash.WriteString(key)
+		value.WriteHash(hash)
 	}
 }

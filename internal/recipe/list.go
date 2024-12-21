@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"fmt"
+	"hash/maphash"
 	"strings"
 )
 
@@ -43,4 +44,10 @@ func (this *RecipeList) Build(ctx *Context) (string, error) {
 		builder.WriteString(str)
 	}
 	return builder.String(), nil
+}
+
+func (this *RecipeList) WriteHash(hash maphash.Hash) {
+	for _, value := range this.Elements {
+		value.WriteHash(hash)
+	}
 }

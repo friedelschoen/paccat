@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"fmt"
+	"hash/maphash"
 )
 
 type Recipe struct {
@@ -37,4 +38,17 @@ func (this *Recipe) NewContext(directory string, params map[string]Buildable) (*
 	}
 
 	return ctx, nil
+}
+
+func (this *Recipe) WriteHash(hash maphash.Hash) {
+	for key, value := range this.RequireAttributes {
+		hash.WriteString(key)
+		value.WriteHash(hash)
+	}
+	for key, value := range this.Attributes {
+		hash.WriteString(key)
+		if value != nil {
+			value.WriteHash(hash)
+		}
+	}
 }

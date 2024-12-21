@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"hash/maphash"
 	"log"
 	"os"
 	"path"
@@ -39,6 +40,7 @@ func makeSymlink(result string) error {
 func main() {
 	install := flag.Bool("install", false, "Build the package")
 	evaluate := flag.String("evaluate", "", "Evaluate attribute")
+	dohash := flag.Bool("hash", false, "Hash Recipe and return")
 	noResult := flag.Bool("no-result", false, "Don't expect a path")
 
 	flag.BoolFunc("help", "prints help-message", func(string) error {
@@ -84,6 +86,11 @@ func main() {
 				log.Print(err)
 			}
 		}
+	} else if *dohash {
+		hash := maphash.Hash{}
+		ast.(*recipe.Recipe).WriteHash(hash)
+		sum := hash.Sum64()
+		fmt.Printf("%016x", sum)
 	} else {
 		fmt.Printf("no operation\n")
 	}

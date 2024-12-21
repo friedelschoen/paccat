@@ -2,27 +2,12 @@ package recipe
 
 import (
 	"fmt"
+	"hash/maphash"
 	"strings"
 )
 
-type RecipeStringLiteral struct {
-	content string
-}
-
 type RecipeString struct {
 	Elements []Buildable
-}
-
-func (this *RecipeStringLiteral) String() string {
-	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", string(this.content))
-}
-
-func (this *RecipeStringLiteral) HasOutput() bool {
-	return false
-}
-
-func (this *RecipeStringLiteral) Build(ctx *Context) (string, error) {
-	return string(this.content), nil
 }
 
 func (this *RecipeString) String() string {
@@ -56,4 +41,10 @@ func (this *RecipeString) Build(ctx *Context) (string, error) {
 		builder.WriteString(str)
 	}
 	return builder.String(), nil
+}
+
+func (this *RecipeString) WriteHash(hash maphash.Hash) {
+	for _, content := range this.Elements {
+		content.WriteHash(hash)
+	}
 }

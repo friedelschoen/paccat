@@ -1,6 +1,9 @@
 package recipe
 
-import "fmt"
+import (
+	"fmt"
+	"hash/maphash"
+)
 
 type RecipeGetter struct {
 	reference Buildable
@@ -25,4 +28,9 @@ func (this *RecipeGetter) Build(ctx *Context) (string, error) {
 		return "", fmt.Errorf("attribute-getter not applied on function")
 	}
 	return value, nil
+}
+
+func (this *RecipeGetter) WriteHash(hash maphash.Hash) {
+	this.reference.WriteHash(hash)
+	hash.WriteString(this.attribute)
 }
