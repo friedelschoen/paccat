@@ -2,25 +2,26 @@ package recipe
 
 import (
 	"fmt"
-	"hash/maphash"
+	"hash"
 )
 
-type RecipeReference struct {
-	content string
+type recipeReference struct {
+	name string
 }
 
-func (this *RecipeReference) Build(ctx *Context) (string, error) {
-	return ctx.Get(this.content, false)
+func (this *recipeReference) Eval(ctx *Context) (string, error) {
+	return ctx.Get(this.name, false)
 }
 
-func (this *RecipeReference) HasOutput() bool {
-	return this.content == "out"
+func (this *recipeReference) HasOutput() bool {
+	return this.name == "out"
 }
 
-func (this *RecipeReference) String() string {
-	return fmt.Sprintf("RecipeReference#%s", this.content)
+func (this *recipeReference) String() string {
+	return fmt.Sprintf("RecipeReference#%s", this.name)
 }
 
-func (this *RecipeReference) WriteHash(hash maphash.Hash) {
-	hash.WriteString(this.content)
+func (this *recipeReference) WriteHash(hash hash.Hash) {
+	hash.Write([]byte(this.name))
+
 }

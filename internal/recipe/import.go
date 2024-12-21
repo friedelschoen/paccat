@@ -2,60 +2,60 @@ package recipe
 
 import (
 	"fmt"
-	"hash/maphash"
+	"hash"
 	"path"
 )
 
-type RecipeImport struct {
-	Path       Buildable
-	Parameters map[string]Buildable
+type recipeImport struct {
+	source    Evaluable
+	arguments map[string]Evaluable
 }
 
-func (this *RecipeImport) String() string {
-	return fmt.Sprintf("RecipeImport#%v{%v}", this.Path, this.Parameters)
+func (this *recipeImport) String() string {
+	return fmt.Sprintf("RecipeImport#%v{%v}", this.source, this.arguments)
 }
 
-func (this *RecipeImport) HasOutput() bool {
+func (this *recipeImport) HasOutput() bool {
 	/* a function call must be at the root of the recipe and a `${out}` in the
 	   path or parameters wouldn't make sense, we just say we don't have any output */
 	return false
 }
 
-func (this *RecipeImport) Build(ctx *Context) (string, error) {
-	if ctx.nextAttribute == nil && !ctx.building {
+func (this *recipeImport) Eval(ctx *Context) (string, error) {
+	if ctx.importAttribute == nil && !ctx.isBuilding {
 		return "", NoGetterError
 	}
 
-	filename, err := this.Path.Build(ctx)
+	filename, err := this.source.Eval(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	pathname := path.Join(ctx.directory, filename)
+	pathname := path.Join(ctx.workDir, filename)
 	recipe, err := ParseFile(pathname)
 	if err != nil {
 		return "", err
 	}
 
-	newContex, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.Parameters)
+	newContex, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments)
 	if err != nil {
 		return "", err
 	}
 
-	if ctx.nextAttribute == nil {
-		return newContex.BuildPackage()
+	if ctx.importAttribute == nil {
+		return newContex.EvalPackage()
 	} else {
-		attr := *ctx.nextAttribute
-		ctx.nextAttribute = nil
+		attr := *ctx.importAttribute
+		ctx.importAttribute = nil
 
 		return newContex.Get(attr, false)
 	}
 }
 
-func (this *RecipeImport) WriteHash(hash maphash.Hash) {
-	this.Path.WriteHash(hash)
-	for key, value := range this.Parameters {
-		hash.WriteString(key)
+func (this *recipeImport) WriteHash(hash hash.Hash) {
+	this.source.WriteHash(hash)
+	for key, value := range this.arguments {
+		hash.Write([]byte(key))
 		value.WriteHash(hash)
 	}
 }

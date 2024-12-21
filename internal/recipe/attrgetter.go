@@ -2,35 +2,35 @@ package recipe
 
 import (
 	"fmt"
-	"hash/maphash"
+	"hash"
 )
 
-type RecipeGetter struct {
-	reference Buildable
+type recipeGetter struct {
+	target    Evaluable
 	attribute string
 }
 
-func (this *RecipeGetter) String() string {
-	return fmt.Sprintf("RecipeGetter#%s{%v}", this.attribute, this.reference)
+func (this *recipeGetter) String() string {
+	return fmt.Sprintf("RecipeGetter#%s{%v}", this.attribute, this.target)
 }
 
-func (this *RecipeGetter) HasOutput() bool {
-	return this.reference.HasOutput()
+func (this *recipeGetter) HasOutput() bool {
+	return this.target.HasOutput()
 }
 
-func (this *RecipeGetter) Build(ctx *Context) (string, error) {
-	ctx.nextAttribute = &this.attribute
-	value, err := this.reference.Build(ctx)
+func (this *recipeGetter) Eval(ctx *Context) (string, error) {
+	ctx.importAttribute = &this.attribute
+	value, err := this.target.Eval(ctx)
 	if err != nil {
 		return "", err
 	}
-	if ctx.nextAttribute != nil {
+	if ctx.importAttribute != nil {
 		return "", fmt.Errorf("attribute-getter not applied on function")
 	}
 	return value, nil
 }
 
-func (this *RecipeGetter) WriteHash(hash maphash.Hash) {
-	this.reference.WriteHash(hash)
-	hash.WriteString(this.attribute)
+func (this *recipeGetter) WriteHash(hash hash.Hash) {
+	this.target.WriteHash(hash)
+	hash.Write([]byte(this.attribute))
 }

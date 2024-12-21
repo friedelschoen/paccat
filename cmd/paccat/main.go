@@ -4,7 +4,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"hash/maphash"
+	"hash/crc64"
 	"log"
 	"os"
 	"path"
@@ -69,7 +69,7 @@ func main() {
 	}
 
 	if *install {
-		ctx.BuildPackage()
+		ctx.EvalPackage()
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
@@ -87,7 +87,8 @@ func main() {
 			}
 		}
 	} else if *dohash {
-		hash := maphash.Hash{}
+		table := crc64.MakeTable(crc64.ISO)
+		hash := crc64.New(table)
 		ast.(*recipe.Recipe).WriteHash(hash)
 		sum := hash.Sum64()
 		fmt.Printf("%016x", sum)

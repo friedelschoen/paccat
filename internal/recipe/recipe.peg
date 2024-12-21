@@ -3,12 +3,12 @@
 Recipe <- require:Require? _ lines:Lines _ EOF {
 	result := &Recipe{}
     if require != nil{
-        result.RequireAttributes = collectPairs(require.([]pair))
+        result.requiredAttributes = collectPairs(require.([]pair))
     } else {
-        result.RequireAttributes = map[string]Buildable{}
+        result.requiredAttributes = map[string]Evaluable{}
     }
 
-	result.Attributes = collectPairs(lines.([]pair))
+	result.attributes = collectPairs(lines.([]pair))
 
 	return result, nil
 }
@@ -27,7 +27,7 @@ Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return
 }
 
 RequireContent <- key:Key _ "=" _ value:Value { 
-    return pair{key.(string), value.(Buildable)}, nil 
+    return pair{key.(string), value.(Evaluable)}, nil 
 } / key:Key {
     return pair{key.(string), nil}, nil
 }
@@ -37,11 +37,11 @@ Key <- val:[a-zA-Z0-9_]+ {
 }
 
 Pair <- key:Key _ "=" _ value:Value {
-    return pair{key.(string), value.(Buildable)}, nil
+    return pair{key.(string), value.(Evaluable)}, nil
 }
 
 Path <- val:[^ [\]]+ {
-    return &RecipeStringLiteral{asString(val)}, nil 
+    return &recipeStringLiteral{asString(val)}, nil 
 }
 
 AttributeGetter <- "->" val:Key {
@@ -49,15 +49,15 @@ AttributeGetter <- "->" val:Key {
 }
 
 Import <- "[" _ path:(Path / String) params:ImportParams? _ "]" attr:AttributeGetter? { 
-	pairs := map[string]Buildable{}
+	pairs := map[string]Evaluable{}
 	if params != nil {
 		pairs = collectPairs(toAnySlice[pair](params.([]any)))
 	}
-	call := &RecipeImport{path.(Buildable), pairs}
+	call := &recipeImport{path.(Evaluable), pairs}
 	if attr == nil {
 		return call, nil
 	}
-	return &RecipeGetter{call, attr.(string)}, nil
+	return &recipeGetter{call, attr.(string)}, nil
 }
 
 ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
@@ -67,7 +67,7 @@ ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
 Value <- List / String / Multiline / Import
 
 List <- "{" values:((WS / NL)* val:Value { return val, nil })* (WS / NL)* "}" { 
-	return &RecipeList{toAnySlice[Buildable](values.([]any))}, nil
+	return &recipeList{toAnySlice[Evaluable](values.([]any))}, nil
 }
 
 String <- '"' content:StringContent+ '"' { 
@@ -91,9 +91,9 @@ StringInterpolation <- "${" _ val:StringValue _ "}" {
 
 StringValue <- key:Key attr:AttributeGetter? {
 	if attr == nil {
-		return &RecipeReference{key.(string)}, nil
+		return &recipeReference{key.(string)}, nil
 	}
-	return &RecipeGetter{&RecipeReference{key.(string)}, attr.(string)}, nil
+	return &recipeGetter{&recipeReference{key.(string)}, attr.(string)}, nil
 }
 
 NL <- "\n" / "\r\n"

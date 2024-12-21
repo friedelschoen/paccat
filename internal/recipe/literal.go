@@ -2,25 +2,25 @@ package recipe
 
 import (
 	"fmt"
-	"hash/maphash"
+	"hash"
 )
 
-type RecipeStringLiteral struct {
-	content string
+type recipeStringLiteral struct {
+	value string
 }
 
-func (this *RecipeStringLiteral) String() string {
-	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", string(this.content))
+func (this *recipeStringLiteral) String() string {
+	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", string(this.value))
 }
 
-func (this *RecipeStringLiteral) HasOutput() bool {
+func (this *recipeStringLiteral) HasOutput() bool {
 	return false
 }
 
-func (this *RecipeStringLiteral) Build(ctx *Context) (string, error) {
-	return string(this.content), nil
+func (this *recipeStringLiteral) Eval(ctx *Context) (string, error) {
+	return string(this.value), nil
 }
 
-func (this *RecipeStringLiteral) WriteHash(hash maphash.Hash) {
-	hash.WriteString(this.content)
+func (this *recipeStringLiteral) WriteHash(hash hash.Hash) {
+	hash.Write([]byte(this.value))
 }

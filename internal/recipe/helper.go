@@ -10,7 +10,7 @@ import (
 
 type pair struct {
 	key   string
-	value Buildable
+	value Evaluable
 }
 
 func asString(val any) string {
@@ -21,16 +21,16 @@ func asString(val any) string {
 	return builder.String()
 }
 
-func makeString(val any) *RecipeString {
+func makeString(val any) *recipeString {
 	builder := strings.Builder{}
-	result := make([]Buildable, 0)
+	result := make([]Evaluable, 0)
 	for _, content := range val.([]any) {
 		switch element := content.(type) {
 		case []byte:
 			builder.Write(element)
-		case Buildable:
+		case Evaluable:
 			if builder.Len() > 0 {
-				result = append(result, &RecipeStringLiteral{builder.String()}, element)
+				result = append(result, &recipeStringLiteral{builder.String()}, element)
 				builder.Reset()
 			} else {
 				result = append(result, element)
@@ -40,17 +40,17 @@ func makeString(val any) *RecipeString {
 		}
 	}
 	if builder.Len() > 0 {
-		result = append(result, &RecipeStringLiteral{builder.String()})
+		result = append(result, &recipeStringLiteral{builder.String()})
 	}
-	return &RecipeString{result}
+	return &recipeString{result}
 }
 
 // Combine head and tail into a single slice
 func headTail[T any](head any, tail []any) []T {
-	result := make([]T, 0, 1+len(tail))
-	result = append(result, head.(T))
-	for _, t := range tail {
-		result = append(result, t.(T))
+	result := make([]T, 1+len(tail))
+	result[0] = head.(T)
+	for i, t := range tail {
+		result[i+1] = t.(T)
 	}
 	return result
 }
@@ -65,8 +65,8 @@ func toAnySlice[T any](input []any) []T {
 	return result
 }
 
-func collectPairs(pairs []pair) map[string]Buildable {
-	result := make(map[string]Buildable)
+func collectPairs(pairs []pair) map[string]Evaluable {
+	result := make(map[string]Evaluable, len(pairs))
 	for _, keyvalue := range pairs {
 		result[keyvalue.key] = keyvalue.value
 	}

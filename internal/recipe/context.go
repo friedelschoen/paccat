@@ -14,11 +14,11 @@ import (
 )
 
 type Context struct {
-	directory     string
-	currentRecipe *Recipe
-	attributes    map[string]Buildable
-	nextAttribute *string
-	building      bool
+	workDir         string               // directory of the recipe
+	currentRecipe   *Recipe              // current recipe
+	scope           map[string]Evaluable // variables and attributes
+	importAttribute *string              // used by RecipeImport
+	isBuilding      bool                 // is currently building or evaluating
 }
 
 func createOutDir(name string) string {
@@ -36,7 +36,7 @@ func createWorkdir(name string) string {
 }
 
 func (this *Context) Get(key string, forceOutput bool) (string, error) {
-	value, ok := this.attributes[key]
+	value, ok := this.scope[key]
 	if !ok {
 		return "", NoAttributeError
 	}
@@ -45,7 +45,7 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 		if forceOutput {
 			return "", NoOutputError
 		}
-		return value.Build(this)
+		return value.Eval(this)
 	}
 
 	name, err := this.Get("name", false)
@@ -60,9 +60,9 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 	}
 	defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
-	this.attributes["out"] = &RecipeStringLiteral{outdir}
+	this.scope["out"] = &recipeStringLiteral{outdir}
 
-	script, err := value.Build(this)
+	script, err := value.Eval(this)
 	if err != nil {
 		return "", err
 	}
@@ -103,10 +103,10 @@ func installPath(pathname string) error {
 	})
 }
 
-func (this *Context) BuildPackage() (string, error) {
-	this.building = true
+func (this *Context) EvalPackage() (string, error) {
+	this.isBuilding = true
 	defer func() {
-		this.building = false
+		this.isBuilding = false
 	}()
 
 	buildDepends, err := this.Get("build_depends", false)

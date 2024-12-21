@@ -2,18 +2,18 @@ package recipe
 
 import (
 	"fmt"
-	"hash/maphash"
+	"hash"
 	"strings"
 )
 
-type RecipeString struct {
-	Elements []Buildable
+type recipeString struct {
+	content []Evaluable
 }
 
-func (this *RecipeString) String() string {
+func (this *recipeString) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("RecipeString{")
-	for i, content := range this.Elements {
+	for i, content := range this.content {
 		if i > 0 {
 			builder.WriteString(", ")
 		}
@@ -22,8 +22,8 @@ func (this *RecipeString) String() string {
 	return builder.String()
 }
 
-func (this *RecipeString) HasOutput() bool {
-	for _, content := range this.Elements {
+func (this *recipeString) HasOutput() bool {
+	for _, content := range this.content {
 		if content.HasOutput() {
 			return true
 		}
@@ -31,10 +31,10 @@ func (this *RecipeString) HasOutput() bool {
 	return false
 }
 
-func (this *RecipeString) Build(ctx *Context) (string, error) {
+func (this *recipeString) Eval(ctx *Context) (string, error) {
 	builder := strings.Builder{}
-	for _, content := range this.Elements {
-		str, err := content.Build(ctx)
+	for _, content := range this.content {
+		str, err := content.Eval(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -43,8 +43,8 @@ func (this *RecipeString) Build(ctx *Context) (string, error) {
 	return builder.String(), nil
 }
 
-func (this *RecipeString) WriteHash(hash maphash.Hash) {
-	for _, content := range this.Elements {
+func (this *recipeString) WriteHash(hash hash.Hash) {
+	for _, content := range this.content {
 		content.WriteHash(hash)
 	}
 }

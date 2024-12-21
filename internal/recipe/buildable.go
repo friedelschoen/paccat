@@ -1,10 +1,9 @@
 package recipe
 
-import "hash/maphash"
+import "hash"
 
-type Buildable interface {
-	Build(*Context) (string, error)
+type Evaluable interface {
+	Eval(*Context) (string, error)
 	HasOutput() bool
-
-	WriteHash(maphash.Hash)
+	WriteHash(hash.Hash)
 }
