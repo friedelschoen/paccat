@@ -42,14 +42,6 @@ func (this *Recipe) NewContext(directory string, params map[string]Evaluable) (*
 }
 
 func (this *Recipe) WriteHash(hash hash.Hash) {
-	for key, value := range this.requiredAttributes {
-		hash.Write([]byte(key))
-		value.WriteHash(hash)
-	}
-	for key, value := range this.attributes {
-		hash.Write([]byte(key))
-		if value != nil {
-			value.WriteHash(hash)
-		}
-	}
+	writeHashMap(this.attributes, hash)
+	writeHashMap(this.requiredAttributes, hash)
 }

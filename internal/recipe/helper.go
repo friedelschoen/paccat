@@ -3,8 +3,12 @@ package recipe
 //go:generate pigeon -o parser.go recipe.peg
 
 import (
+	"cmp"
+	"hash"
 	"log"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -71,4 +75,23 @@ func collectPairs(pairs []pair) map[string]Evaluable {
 		result[keyvalue.key] = keyvalue.value
 	}
 	return result
+}
+
+func sortedKeys[key cmp.Ordered, value any](attr map[key]value) []key {
+	keys := make([]key, 0, len(attr))
+	slices.AppendSeq(keys, maps.Keys(attr))
+	slices.Sort(keys)
+	return keys
+}
+
+func writeHashMap[key cmp.Ordered](attr map[key]Evaluable, hash hash.Hash) {
+	keys := make([]key, 0, len(attr))
+	keys = slices.AppendSeq(keys, maps.Keys(attr))
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		if attr[key] != nil {
+			attr[key].WriteHash(hash)
+		}
+	}
 }

@@ -54,8 +54,6 @@ func (this *recipeImport) Eval(ctx *Context) (string, error) {
 
 func (this *recipeImport) WriteHash(hash hash.Hash) {
 	this.source.WriteHash(hash)
-	for key, value := range this.arguments {
-		hash.Write([]byte(key))
-		value.WriteHash(hash)
-	}
+
+	writeHashMap(this.arguments, hash)
 }
