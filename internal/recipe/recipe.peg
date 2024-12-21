@@ -48,23 +48,23 @@ AttributeGetter <- "->" val:Key {
     return val, nil
 }
 
-FunctionCall <- "[" _ path:(Path / String) params:FunctionParams? _ "]" attr:AttributeGetter? { 
+Import <- "[" _ path:(Path / String) params:ImportParams? _ "]" attr:AttributeGetter? { 
 	pairs := map[string]Buildable{}
 	if params != nil {
 		pairs = collectPairs(toAnySlice[pair](params.([]any)))
 	}
-	call := &RecipeFunction{path.(Buildable), pairs}
+	call := &RecipeImport{path.(Buildable), pairs}
 	if attr == nil {
 		return call, nil
 	}
 	return &RecipeGetter{call, attr.(string)}, nil
 }
 
-FunctionParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
+ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
     return headTail[any](head, tail.([]any)), nil
 }
 
-Value <- List / String / Multiline / FunctionCall
+Value <- List / String / Multiline / Import
 
 List <- "{" values:((WS / NL)* val:Value { return val, nil })* (WS / NL)* "}" { 
 	return &RecipeList{toAnySlice[Buildable](values.([]any))}, nil

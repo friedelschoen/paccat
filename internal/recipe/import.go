@@ -6,22 +6,22 @@ import (
 	"path"
 )
 
-type RecipeFunction struct {
+type RecipeImport struct {
 	Path       Buildable
 	Parameters map[string]Buildable
 }
 
-func (this *RecipeFunction) String() string {
-	return fmt.Sprintf("RecipeFunction#%v{%v}", this.Path, this.Parameters)
+func (this *RecipeImport) String() string {
+	return fmt.Sprintf("RecipeImport#%v{%v}", this.Path, this.Parameters)
 }
 
-func (this *RecipeFunction) HasOutput() bool {
+func (this *RecipeImport) HasOutput() bool {
 	/* a function call must be at the root of the recipe and a `${out}` in the
 	   path or parameters wouldn't make sense, we just say we don't have any output */
 	return false
 }
 
-func (this *RecipeFunction) Build(ctx *Context) (string, error) {
+func (this *RecipeImport) Build(ctx *Context) (string, error) {
 	if ctx.nextAttribute == nil && !ctx.building {
 		return "", NoGetterError
 	}
@@ -52,7 +52,7 @@ func (this *RecipeFunction) Build(ctx *Context) (string, error) {
 	}
 }
 
-func (this *RecipeFunction) WriteHash(hash maphash.Hash) {
+func (this *RecipeImport) WriteHash(hash maphash.Hash) {
 	this.Path.WriteHash(hash)
 	for key, value := range this.Parameters {
 		hash.WriteString(key)
