@@ -1,13 +1,11 @@
-name = "dwm"
+name = "dwm";
 
-workdir = [ fetch.pcr url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z" ]
+workdir = import ./fetch.pcr {url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z"};
 
-build_depends = {
-    [ textselect.pcr ]
-}
-
-build = ""
+build = with [
+    import textselect.pcr {}
+] ""
     cd ${workdir}/dwm-6.5
     make
     make PREFIX=${out} install
-""
+"";

@@ -1,6 +1,6 @@
 { package recipe }
 
-Recipe <- require:Require? _ lines:Lines _ EOF {
+Recipe <- require:Require? _ lines:Line* _ EOF {
 	result := &Recipe{}
     if require != nil{
         result.requiredAttributes = collectPairs(require.([]pair))
@@ -8,21 +8,16 @@ Recipe <- require:Require? _ lines:Lines _ EOF {
         result.requiredAttributes = map[string]Evaluable{}
     }
 
-	result.attributes = collectPairs(lines.([]pair))
+	result.attributes = collectPairs(toAnySlice[pair](lines.([]any)))
 
 	return result, nil
 }
 
-Lines <- head:(val:Pair? _ NL { return val, nil })* tail:Pair? {
-	slc := toAnySlice[pair](head.([]any))
-    if tail == nil {
-		return slc, nil
-	}
+Line <- _ val:Pair? _ ";" _ { 
+	return val, nil
+} 
 
-	return append(slc, tail.(pair)), nil
-}
-
-Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return val, nil })* _ "]" _ NL {
+Require <- _ "[" _ head:RequireContent tail:(_ "," _ val:RequireContent { return val, nil })* _ "]" _ ";" {
     return headTail[pair](head, tail.([]any)), nil
 }
 
@@ -44,35 +39,45 @@ Path <- val:[^ [\]]+ {
     return &recipeStringLiteral{asString(val)}, nil 
 }
 
-AttributeGetter <- "->" val:Key {
-    return val, nil
-}
-
-Import <- "[" _ path:(Path / String) params:ImportParams? _ "]" attr:AttributeGetter? { 
+Import <- "import" _ path:(Path / String) _ "{" _ params:ImportParams? _ "}" { 
 	pairs := map[string]Evaluable{}
 	if params != nil {
 		pairs = collectPairs(toAnySlice[pair](params.([]any)))
 	}
-	call := &recipeImport{path.(Evaluable), pairs}
-	if attr == nil {
-		return call, nil
-	}
-	return &recipeGetter{call, attr.(string)}, nil
+	return &recipeImport{path.(Evaluable), pairs}, nil
 }
 
 ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
     return headTail[any](head, tail.([]any)), nil
 }
 
-Value <- List / String / Multiline / Import
+Reference <- key:Key {
+	return &recipeReference{key.(string)}, nil
+}
 
-List <- "{" values:((WS / NL)* val:Value { return val, nil })* (WS / NL)* "}" { 
-	return &recipeList{toAnySlice[Evaluable](values.([]any))}, nil
+Surrounded <- "(" _ value:Value _ ")" {
+	return value, nil
+}
+
+Dependencies <- "with" _ dependencies:Value _ target:Value {
+	return &recipeWith{dependencies.(Evaluable), target.(Evaluable)}, nil
+}
+
+Value <- value:(List / String / Multiline / Import / Dependencies / Surrounded / Reference) attr:(_ "->" _ val:Key { return val, nil })? {
+	if attr == nil {
+		return value, nil
+	}
+	return &recipeGetter{value.(Evaluable), attr.(string)}, nil
+}
+
+List <- "[" _ head:Value values:(_ "," _ val:Value { return val, nil })* _ "]" { 
+	return &recipeList{headTail[Evaluable](head, values.([]any))}, nil
 }
 
 String <- '"' content:StringContent+ '"' { 
     return makeString(content), nil
 }
+
 Multiline <- "\"\"" content:MultilineContent* "\"\"" {
     return makeString(content), nil
 }
@@ -85,21 +90,13 @@ MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. {
     return chr, nil
 })
 
-StringInterpolation <- "${" _ val:StringValue _ "}" {
+StringInterpolation <- "${" _ val:Value _ "}" {
     return val, nil
 }
 
-StringValue <- key:Key attr:AttributeGetter? {
-	if attr == nil {
-		return &recipeReference{key.(string)}, nil
-	}
-	return &recipeGetter{&recipeReference{key.(string)}, attr.(string)}, nil
-}
-
-NL <- "\n" / "\r\n"
-WS <- [ \t]
+WS <- [ \t\n\r]
 
 _ "whitespace" <- (Comment / WS)*
-Comment "comment" <- "#" [^\n\r]+ &(NL / EOF)
+Comment "comment" <- "#" [^\n\r]+
 
 EOF <- !.
