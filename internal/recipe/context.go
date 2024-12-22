@@ -2,11 +2,9 @@ package recipe
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,15 +21,6 @@ type Context struct {
 func createOutDir(name string) string {
 	nametime := fmt.Sprintf("%s-%d", name, time.Now().UnixMilli())
 	return path.Join(util.GetCachedir(), nametime)
-}
-
-func createWorkdir(name string) string {
-	nametime := fmt.Sprintf("%s-%d", name, time.Now().UnixMilli())
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path.Join(os.TempDir(), "paccat", nametime)
-	}
-	return path.Join(home, ".paccat", nametime)
 }
 
 func (this *Context) Get(key string, forceOutput bool) (string, error) {
@@ -76,26 +65,4 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 		return "", err
 	}
 	return outdir, nil
-}
-
-func installPath(pathname string) error {
-	target := "target"
-
-	return filepath.Walk(pathname, func(currentPath string, info fs.FileInfo, err error) error {
-		relPath, err := filepath.Rel(pathname, currentPath)
-		if err != nil {
-			return err
-		}
-
-		targetPath := path.Join(target, relPath)
-
-		if info.IsDir() {
-			fmt.Printf("mkdir %s\n", targetPath)
-			os.Mkdir(targetPath, info.Mode())
-		} else {
-			fmt.Printf("symlink %s -> %s\n", currentPath, targetPath)
-			os.Symlink(currentPath, targetPath)
-		}
-		return nil
-	})
 }

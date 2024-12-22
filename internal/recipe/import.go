@@ -22,11 +22,11 @@ func (this *recipeImport) HasOutput() bool {
 }
 
 func (this *recipeImport) Eval(ctx *Context) (string, error) {
-	if ctx.importAttribute == nil {
-		return "", NoGetterError
+	attr := "build"
+	if ctx.importAttribute != nil {
+		attr = *ctx.importAttribute
+		ctx.importAttribute = nil
 	}
-	attr := *ctx.importAttribute
-	ctx.importAttribute = nil
 
 	filename, err := this.source.Eval(ctx)
 	if err != nil {

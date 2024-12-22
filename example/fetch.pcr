@@ -1,9 +1,9 @@
-[ url, wget_option=" ", tar_options=" " ]
+[ url, wget_option=" ", tar_options=" " ];
 
-name = "fetch"
+name = "fetch";
 
 build = ""
     echo hello
     mkdir -p ${out}
     wget -O- ${wget_option} ${url} | tar -C ${out} -xv ${tar_options}
-""
+"";

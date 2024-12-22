@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 
+	"friedelschoen.io/paccat/internal/install"
 	"friedelschoen.io/paccat/internal/recipe"
 )
 
@@ -38,7 +39,7 @@ func makeSymlink(result string) error {
 }
 
 func main() {
-	install := flag.Bool("install", false, "Build the package")
+	doinstall := flag.Bool("install", false, "Build the package")
 	evaluate := flag.String("evaluate", "", "Evaluate attribute")
 	dohash := flag.Bool("hash", false, "Hash Recipe and return")
 	noResult := flag.Bool("no-result", false, "Don't expect a path")
@@ -68,11 +69,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *install {
-		ctx.Get("build", true)
+	if *doinstall {
+		path, err := ctx.Get("build", true)
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
+		db := install.PackageDatabase{}
+		db.Install("", path)
 	} else if *evaluate != "" {
 		result, err := ctx.Get(*evaluate, *noResult)
 

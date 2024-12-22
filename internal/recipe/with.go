@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hash"
 	"strings"
+
+	"friedelschoen.io/paccat/internal/install"
 )
 
 type recipeWith struct {
@@ -26,10 +28,8 @@ func (this *recipeWith) Eval(ctx *Context) (string, error) {
 	}
 
 	for _, dep := range strings.Split(depends, " ") {
-		err := installPath(dep)
-		if err != nil {
-			return "", err
-		}
+		db := install.PackageDatabase{}
+		db.Install("", dep)
 	}
 
 	return this.target.Eval(ctx)
