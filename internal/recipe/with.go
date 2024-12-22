@@ -3,6 +3,7 @@ package recipe
 import (
 	"fmt"
 	"hash"
+	"strings"
 )
 
 type recipeWith struct {
@@ -15,11 +16,23 @@ func (this *recipeWith) String() string {
 }
 
 func (this *recipeWith) HasOutput() bool {
-	return this.dependencies.HasOutput() || this.target.HasOutput()
+	return true // this must always build
 }
 
 func (this *recipeWith) Eval(ctx *Context) (string, error) {
-	return "", nil // TODO: ?
+	depends, err := this.dependencies.Eval(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	for _, dep := range strings.Split(depends, " ") {
+		err := installPath(dep)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return this.target.Eval(ctx)
 }
 
 func (this *recipeWith) WriteHash(hash hash.Hash) {

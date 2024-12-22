@@ -22,9 +22,11 @@ func (this *recipeImport) HasOutput() bool {
 }
 
 func (this *recipeImport) Eval(ctx *Context) (string, error) {
-	if ctx.importAttribute == nil && !ctx.isBuilding {
+	if ctx.importAttribute == nil {
 		return "", NoGetterError
 	}
+	attr := *ctx.importAttribute
+	ctx.importAttribute = nil
 
 	filename, err := this.source.Eval(ctx)
 	if err != nil {
@@ -42,14 +44,7 @@ func (this *recipeImport) Eval(ctx *Context) (string, error) {
 		return "", err
 	}
 
-	if ctx.importAttribute == nil {
-		return newContex.EvalPackage()
-	} else {
-		attr := *ctx.importAttribute
-		ctx.importAttribute = nil
-
-		return newContex.Get(attr, false)
-	}
+	return newContex.Get(attr, false)
 }
 
 func (this *recipeImport) WriteHash(hash hash.Hash) {

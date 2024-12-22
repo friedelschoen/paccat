@@ -18,7 +18,6 @@ type Context struct {
 	currentRecipe   *Recipe              // current recipe
 	scope           map[string]Evaluable // variables and attributes
 	importAttribute *string              // used by RecipeImport
-	isBuilding      bool                 // is currently building or evaluating
 }
 
 func createOutDir(name string) string {
@@ -67,8 +66,6 @@ func (this *Context) Get(key string, forceOutput bool) (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("script: '%v'\n", script)
-
 	cmd := exec.Command("sh")
 	cmd.Stdin = strings.NewReader(script)
 	cmd.Stdout = os.Stdout
@@ -101,51 +98,4 @@ func installPath(pathname string) error {
 		}
 		return nil
 	})
-}
-
-func (this *Context) EvalPackage() (string, error) {
-	this.isBuilding = true
-	defer func() {
-		this.isBuilding = false
-	}()
-
-	buildDepends, err := this.Get("build_depends", false)
-	if err != nil && err != NoAttributeError {
-		return "", err
-	}
-
-	if err == nil {
-		for _, dep := range strings.Split(buildDepends, " ") {
-			err := installPath(dep)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	result, err := this.Get("build", true)
-	if err != nil {
-		return "", err
-	}
-
-	err = installPath(result)
-	if err != nil {
-		return "", err
-	}
-
-	runDepends, err := this.Get("depends", false)
-	if err != nil && err != NoAttributeError {
-		return "", err
-	}
-
-	if err == nil {
-		for _, dep := range strings.Split(runDepends, " ") {
-			err := installPath(dep)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	return result, nil
 }

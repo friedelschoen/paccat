@@ -69,7 +69,7 @@ func main() {
 	}
 
 	if *install {
-		ctx.EvalPackage()
+		ctx.Get("build", true)
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
