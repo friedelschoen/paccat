@@ -1,7 +1,6 @@
 package recipe
 
 import (
-	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -41,13 +40,13 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 	}
 
 	sum := EvaluableSum(this.script)
-	outdir := createOutDir(sum)
+	outpath := createOutDir(sum)
 
-	if _, err := os.Stat(outdir); errors.Is(err, os.ErrExist) {
+	if _, err := os.Stat(outpath); err == nil {
 		if !ctx.forceBuild {
-			return outdir, nil
+			return outpath, nil
 		}
-		if err = os.RemoveAll(outdir); err != nil {
+		if err = os.RemoveAll(outpath); err != nil {
 			return "", err
 		}
 	}
@@ -58,7 +57,7 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 	}
 	defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
-	ctx.scope["out"] = &recipeStringLiteral{position{}, outdir}
+	ctx.scope["out"] = &recipeStringLiteral{position{}, outpath}
 	defer delete(ctx.scope, "out")
 
 	script, err := this.script.Eval(ctx, "")
@@ -76,7 +75,7 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 		return "", err
 	}
 
-	return outdir, nil
+	return outpath, nil
 }
 
 func (this *recipeOutput) GetPosition() position {

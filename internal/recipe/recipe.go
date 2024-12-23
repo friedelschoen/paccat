@@ -22,6 +22,7 @@ func (this *Recipe) NewContext(filename string, params map[string]Evaluable) (*C
 		scope:         this.attributes,
 		workDir:       path.Dir(filename),
 		filename:      path.Base(filename),
+		forceBuild:    false,
 	}
 
 	/* override attributes */
