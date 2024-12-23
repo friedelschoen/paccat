@@ -7,6 +7,7 @@ import (
 )
 
 type recipeList struct {
+	pos   position
 	items []Evaluable
 }
 
@@ -31,13 +32,16 @@ func (this *recipeList) HasOutput() bool {
 	return false
 }
 
-func (this *recipeList) Eval(ctx *Context) (string, error) {
+func (this *recipeList) Eval(ctx *Context, attr string) (string, error) {
+	if attr != "" {
+		return "", NoAttributeError{ctx, this.pos, "list", attr}
+	}
 	builder := strings.Builder{}
 	for i, content := range this.items {
 		if i > 0 {
 			builder.WriteString(" ")
 		}
-		str, err := content.Eval(ctx)
+		str, err := content.Eval(ctx, "")
 		if err != nil {
 			return "", err
 		}
@@ -47,7 +51,12 @@ func (this *recipeList) Eval(ctx *Context) (string, error) {
 }
 
 func (this *recipeList) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("list"))
 	for _, value := range this.items {
 		value.WriteHash(hash)
 	}
+}
+
+func (this *recipeList) GetPosition() position {
+	return this.pos
 }

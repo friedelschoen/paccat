@@ -1,14 +1,20 @@
 package util
 
 import (
+	"log"
 	"os"
 	"path"
 )
 
-func GetCachedir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path.Join(os.TempDir(), "paccat")
+func GetCachedir() (dist string) {
+	if home, err := os.UserHomeDir(); err == nil {
+		dist = path.Join(home, ".paccat/store")
+	} else {
+		dist = path.Join(os.TempDir(), "paccat")
 	}
-	return path.Join(home, ".paccat")
+
+	if err := os.MkdirAll(dist, 0777); err != nil {
+		log.Panic(err)
+	}
+	return dist
 }

@@ -1,8 +1,8 @@
 { package recipe }
 
 Recipe <- require:Require? _ lines:Line* _ EOF {
-	result := &Recipe{}
-    if require != nil{
+	result := &Recipe{c.pos, nil, nil}
+    if require != nil {
         result.requiredAttributes = collectPairs(require.([]pair))
     } else {
         result.requiredAttributes = map[string]Evaluable{}
@@ -36,7 +36,7 @@ Pair <- key:Key _ "=" _ value:Value {
 }
 
 Path <- val:[^ [\]]+ {
-    return &recipeStringLiteral{asString(val)}, nil 
+    return &recipeStringLiteral{c.pos, asString(val)}, nil 
 }
 
 Import <- "import" _ path:(Path / String) _ "{" _ params:ImportParams? _ "}" { 
@@ -44,7 +44,7 @@ Import <- "import" _ path:(Path / String) _ "{" _ params:ImportParams? _ "}" {
 	if params != nil {
 		pairs = collectPairs(toAnySlice[pair](params.([]any)))
 	}
-	return &recipeImport{path.(Evaluable), pairs}, nil
+	return &recipeImport{c.pos, path.(Evaluable), pairs}, nil
 }
 
 ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
@@ -52,7 +52,7 @@ ImportParams <- _ head:Pair tail:(_ "," _ val:Pair { return val, nil })* {
 }
 
 Reference <- key:Key {
-	return &recipeReference{key.(string)}, nil
+	return &recipeReference{c.pos, key.(string)}, nil
 }
 
 Surrounded <- "(" _ value:Value _ ")" {
@@ -60,34 +60,38 @@ Surrounded <- "(" _ value:Value _ ")" {
 }
 
 Dependencies <- "with" _ dependencies:Value _ target:Value {
-	return &recipeWith{dependencies.(Evaluable), target.(Evaluable)}, nil
+	return &recipeWith{c.pos, dependencies.(Evaluable), target.(Evaluable)}, nil
 }
 
-Value <- value:(List / String / Multiline / Import / Dependencies / Surrounded / Reference) attr:(_ "->" _ val:Key { return val, nil })? {
+Output <- "output" _ script:Value {
+    return &recipeOutput{c.pos, script.(Evaluable)}, nil
+}
+
+Value <- value:(List / String / Multiline / Import / Output / Dependencies / Surrounded / Reference) attr:(_ "->" _ val:Key { return positioned[string]{c.pos, val.(string)}, nil })? {
 	if attr == nil {
 		return value, nil
 	}
-	return &recipeGetter{value.(Evaluable), attr.(string)}, nil
+	return &recipeGetter{attr.(positioned[string]).pos, value.(Evaluable), attr.(positioned[string]).content}, nil
 }
 
 List <- "[" _ head:Value values:(_ "," _ val:Value { return val, nil })* _ "]" { 
-	return &recipeList{headTail[Evaluable](head, values.([]any))}, nil
+	return &recipeList{c.pos, headTail[Evaluable](head, values.([]any))}, nil
 }
 
 String <- '"' content:StringContent+ '"' { 
-    return makeString(content), nil
+    return makeString(c.pos, content), nil
 }
 
 Multiline <- "\"\"" content:MultilineContent* "\"\"" {
-    return makeString(content), nil
+    return makeString(c.pos, content), nil
 }
 
-StringContent <- StringInterpolation / !"${" chr:[^"\n\r] { // syntax highlighting is fukkie wukkie -> "
-    return chr, nil
+StringContent <- StringInterpolation / !"${" chr:[^"\n\r] {   // syntax highlighting is fukkie wukkie -> "
+    return positioned[[]byte]{c.pos, chr.([]byte)}, nil
 }
 
 MultilineContent <- StringInterpolation / (!"\"\"" !"${" chr:. {
-    return chr, nil
+    return positioned[[]byte]{c.pos, chr.([]byte)}, nil
 })
 
 StringInterpolation <- "${" _ val:Value _ "}" {

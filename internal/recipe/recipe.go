@@ -3,9 +3,11 @@ package recipe
 import (
 	"fmt"
 	"hash"
+	"path"
 )
 
 type Recipe struct {
+	pos                position
 	attributes         map[string]Evaluable
 	requiredAttributes map[string]Evaluable
 }
@@ -14,11 +16,12 @@ func (this *Recipe) String() string {
 	return fmt.Sprintf("Recipe{ require=%s, attr=%s }", this.requiredAttributes, this.attributes)
 }
 
-func (this *Recipe) NewContext(directory string, params map[string]Evaluable) (*Context, error) {
+func (this *Recipe) NewContext(filename string, params map[string]Evaluable) (*Context, error) {
 	ctx := &Context{
 		currentRecipe: this,
 		scope:         this.attributes,
-		workDir:       directory,
+		workDir:       path.Dir(filename),
+		filename:      path.Base(filename),
 	}
 
 	/* override attributes */
@@ -42,6 +45,11 @@ func (this *Recipe) NewContext(directory string, params map[string]Evaluable) (*
 }
 
 func (this *Recipe) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("recipe"))
 	writeHashMap(this.attributes, hash)
 	writeHashMap(this.requiredAttributes, hash)
+}
+
+func (this *Recipe) GetPosition() position {
+	return this.pos
 }

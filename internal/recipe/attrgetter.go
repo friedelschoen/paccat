@@ -6,6 +6,7 @@ import (
 )
 
 type recipeGetter struct {
+	pos       position
 	target    Evaluable
 	attribute string
 }
@@ -19,18 +20,19 @@ func (this *recipeGetter) HasOutput() bool {
 }
 
 func (this *recipeGetter) Eval(ctx *Context) (string, error) {
-	ctx.importAttribute = &this.attribute
-	value, err := this.target.Eval(ctx)
+	value, err := this.target.Eval(ctx, this.attribute)
 	if err != nil {
 		return "", err
-	}
-	if ctx.importAttribute != nil {
-		return "", fmt.Errorf("attribute-getter not applied on function")
 	}
 	return value, nil
 }
 
 func (this *recipeGetter) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("getter"))
 	this.target.WriteHash(hash)
 	hash.Write([]byte(this.attribute))
+}
+
+func (this *recipeGetter) GetPosition() position {
+	return this.pos
 }

@@ -6,11 +6,12 @@ import (
 )
 
 type recipeReference struct {
+	pos  position
 	name string
 }
 
-func (this *recipeReference) Eval(ctx *Context) (string, error) {
-	return ctx.Get(this.name, false)
+func (this *recipeReference) Eval(ctx *Context, attr string) (string, error) {
+	return ctx.Get(this.name, attr)
 }
 
 func (this *recipeReference) HasOutput() bool {
@@ -22,6 +23,10 @@ func (this *recipeReference) String() string {
 }
 
 func (this *recipeReference) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("reference"))
 	hash.Write([]byte(this.name))
+}
 
+func (this *recipeReference) GetPosition() position {
+	return this.pos
 }

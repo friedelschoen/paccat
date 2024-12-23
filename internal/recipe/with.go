@@ -9,6 +9,7 @@ import (
 )
 
 type recipeWith struct {
+	pos          position
 	dependencies Evaluable
 	target       Evaluable
 }
@@ -21,8 +22,11 @@ func (this *recipeWith) HasOutput() bool {
 	return true // this must always build
 }
 
-func (this *recipeWith) Eval(ctx *Context) (string, error) {
-	depends, err := this.dependencies.Eval(ctx)
+func (this *recipeWith) Eval(ctx *Context, attr string) (string, error) {
+	if attr != "" {
+		return "", NoAttributeError{ctx, this.pos, "with-statement", attr}
+	}
+	depends, err := this.dependencies.Eval(ctx, "")
 	if err != nil {
 		return "", err
 	}
@@ -32,10 +36,15 @@ func (this *recipeWith) Eval(ctx *Context) (string, error) {
 		db.Install("", dep)
 	}
 
-	return this.target.Eval(ctx)
+	return this.target.Eval(ctx, "")
 }
 
 func (this *recipeWith) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("with"))
 	this.dependencies.WriteHash(hash)
 	this.target.WriteHash(hash)
+}
+
+func (this *recipeWith) GetPosition() position {
+	return this.pos
 }

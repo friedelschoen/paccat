@@ -6,7 +6,10 @@ import (
 	"path"
 )
 
+const DefaultAttribute = "build"
+
 type recipeImport struct {
+	pos       position
 	source    Evaluable
 	arguments map[string]Evaluable
 }
@@ -21,14 +24,11 @@ func (this *recipeImport) HasOutput() bool {
 	return false
 }
 
-func (this *recipeImport) Eval(ctx *Context) (string, error) {
-	attr := "build"
-	if ctx.importAttribute != nil {
-		attr = *ctx.importAttribute
-		ctx.importAttribute = nil
+func (this *recipeImport) Eval(ctx *Context, attr string) (string, error) {
+	if attr == "" {
+		attr = DefaultAttribute
 	}
-
-	filename, err := this.source.Eval(ctx)
+	filename, err := this.source.Eval(ctx, "")
 	if err != nil {
 		return "", err
 	}
@@ -39,16 +39,24 @@ func (this *recipeImport) Eval(ctx *Context) (string, error) {
 		return "", err
 	}
 
-	newContex, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments)
+	newContext, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments)
 	if err != nil {
 		return "", err
 	}
 
-	return newContex.Get(attr, false)
+	value, ok := newContext.scope[attr] //(attr, false)
+	if !ok {
+		return "", UnknownAttributeError{ctx, this.pos, filename, attr}
+	}
+	return value.Eval(newContext, "")
 }
 
 func (this *recipeImport) WriteHash(hash hash.Hash) {
+	hash.Write([]byte("import"))
 	this.source.WriteHash(hash)
-
 	writeHashMap(this.arguments, hash)
+}
+
+func (this *recipeImport) GetPosition() position {
+	return this.pos
 }

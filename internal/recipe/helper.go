@@ -17,6 +17,11 @@ type pair struct {
 	value Evaluable
 }
 
+type positioned[T any] struct {
+	pos     position
+	content T
+}
+
 func asString(val any) string {
 	builder := strings.Builder{}
 	for _, chars := range val.([]any) {
@@ -25,16 +30,20 @@ func asString(val any) string {
 	return builder.String()
 }
 
-func makeString(val any) *recipeString {
+func makeString(pos position, val any) *recipeString {
 	builder := strings.Builder{}
 	result := make([]Evaluable, 0)
+	currentPos := pos
 	for _, content := range val.([]any) {
 		switch element := content.(type) {
-		case []byte:
-			builder.Write(element)
+		case positioned[[]byte]:
+			if builder.Len() == 0 {
+				currentPos = element.pos
+			}
+			builder.Write(element.content)
 		case Evaluable:
 			if builder.Len() > 0 {
-				result = append(result, &recipeStringLiteral{builder.String()}, element)
+				result = append(result, &recipeStringLiteral{currentPos, builder.String()}, element)
 				builder.Reset()
 			} else {
 				result = append(result, element)
@@ -44,9 +53,9 @@ func makeString(val any) *recipeString {
 		}
 	}
 	if builder.Len() > 0 {
-		result = append(result, &recipeStringLiteral{builder.String()})
+		result = append(result, &recipeStringLiteral{currentPos, builder.String()})
 	}
-	return &recipeString{result}
+	return &recipeString{pos, result}
 }
 
 // Combine head and tail into a single slice

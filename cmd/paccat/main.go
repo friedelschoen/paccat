@@ -7,7 +7,6 @@ import (
 	"hash/crc64"
 	"log"
 	"os"
-	"path"
 
 	"friedelschoen.io/paccat/internal/install"
 	"friedelschoen.io/paccat/internal/recipe"
@@ -64,20 +63,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx, err := ast.(*recipe.Recipe).NewContext(path.Dir(filepath), nil)
+	ctx, err := ast.(*recipe.Recipe).NewContext(filepath, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *doinstall {
-		path, err := ctx.Get("build", true)
+		path, err := ctx.Get("build", "")
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
 		db := install.PackageDatabase{}
 		db.Install("", path)
 	} else if *evaluate != "" {
-		result, err := ctx.Get(*evaluate, *noResult)
+		result, err := ctx.Get(*evaluate, "")
 
 		if err != nil {
 			log.Fatal("error while building: ", err)

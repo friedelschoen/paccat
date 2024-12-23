@@ -2,7 +2,7 @@
 
 name = "fetch";
 
-build = ""
+build = output ""
     echo hello
     mkdir -p ${out}
     wget -O- ${wget_option} ${url} | tar -C ${out} -xv ${tar_options}

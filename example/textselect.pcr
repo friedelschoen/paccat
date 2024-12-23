@@ -1,6 +1,6 @@
 name = "textselect";
 
-build = ""
+build = output ""
     git clone https://github.com/friedelschoen/textselect.git .
     make
     mkdir -p ${out}/bin ${out}/share/man/man1
