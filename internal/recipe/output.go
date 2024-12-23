@@ -14,6 +14,7 @@ import (
 type recipeOutput struct {
 	pos    position
 	script Evaluable
+	always bool
 }
 
 func (this *recipeOutput) String() string {
@@ -43,7 +44,7 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 	outpath := createOutDir(sum)
 
 	if _, err := os.Stat(outpath); err == nil {
-		if !ctx.forceBuild {
+		if !this.always && !ctx.forceBuild {
 			return outpath, nil
 		}
 		if err = os.RemoveAll(outpath); err != nil {
@@ -57,8 +58,8 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 	}
 	defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
-	ctx.scope["out"] = &recipeStringLiteral{position{}, outpath}
-	defer delete(ctx.scope, "out")
+	ctx.Set("out", outpath)
+	defer ctx.Unset("out")
 
 	script, err := this.script.Eval(ctx, "")
 	if err != nil {

@@ -63,8 +63,8 @@ Dependencies <- "with" _ dependencies:Value _ target:Value {
 	return &recipeWith{c.pos, dependencies.(Evaluable), target.(Evaluable)}, nil
 }
 
-Output <- "output" _ script:Value {
-    return &recipeOutput{c.pos, script.(Evaluable)}, nil
+Output <- "output" _ always:("always" _)? script:Value {
+    return &recipeOutput{c.pos, script.(Evaluable), always != nil}, nil
 }
 
 Value <- value:(List / String / Multiline / Import / Output / Dependencies / Surrounded / Reference) attr:(_ "->" _ val:Key { return positioned[string]{c.pos, val.(string)}, nil })? {
