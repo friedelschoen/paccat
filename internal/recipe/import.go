@@ -18,12 +18,6 @@ func (this *recipeImport) String() string {
 	return fmt.Sprintf("RecipeImport#%v{%v}", this.source, this.arguments)
 }
 
-func (this *recipeImport) HasOutput() bool {
-	/* a function call must be at the root of the recipe and a `${out}` in the
-	   path or parameters wouldn't make sense, we just say we don't have any output */
-	return false
-}
-
 func (this *recipeImport) Eval(ctx *Context, attr string) (string, error) {
 	if attr == "" {
 		attr = DefaultAttribute

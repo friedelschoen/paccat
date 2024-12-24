@@ -26,10 +26,6 @@ func (this *recipeOutput) String() string {
 	return fmt.Sprintf("RecipeOutput{%v}", this.script)
 }
 
-func (this *recipeOutput) HasOutput() bool {
-	return true
-}
-
 func (this *recipeOutput) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("output"))
 	this.script.WriteHash(hash)

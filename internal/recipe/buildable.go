@@ -7,7 +7,6 @@ import (
 
 type Evaluable interface {
 	Eval(*Context, string) (string, error)
-	HasOutput() bool
 	WriteHash(hash.Hash)
 	GetPosition() position
 }

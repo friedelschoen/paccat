@@ -14,10 +14,6 @@ func (this *recipeReference) Eval(ctx *Context, attr string) (string, error) {
 	return ctx.Get(this.name, attr)
 }
 
-func (this *recipeReference) HasOutput() bool {
-	return this.name == "out"
-}
-
 func (this *recipeReference) String() string {
 	return fmt.Sprintf("RecipeReference#%s", this.name)
 }

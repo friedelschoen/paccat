@@ -14,10 +14,6 @@ func (this *recipeStringLiteral) String() string {
 	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", string(this.value))
 }
 
-func (this *recipeStringLiteral) HasOutput() bool {
-	return false
-}
-
 func (this *recipeStringLiteral) Eval(ctx *Context, attr string) (string, error) {
 	if attr != "" {
 		return "", NoAttributeError{ctx, this.pos, "literal", attr}

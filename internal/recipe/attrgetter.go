@@ -15,10 +15,6 @@ func (this *recipeGetter) String() string {
 	return fmt.Sprintf("RecipeGetter#%s{%v}", this.attribute, this.target)
 }
 
-func (this *recipeGetter) HasOutput() bool {
-	return this.target.HasOutput()
-}
-
 func (this *recipeGetter) Eval(ctx *Context) (string, error) {
 	value, err := this.target.Eval(ctx, this.attribute)
 	if err != nil {

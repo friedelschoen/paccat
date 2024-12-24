@@ -23,15 +23,6 @@ func (this *recipeList) String() string {
 	return builder.String()
 }
 
-func (this *recipeList) HasOutput() bool {
-	for _, content := range this.items {
-		if content.HasOutput() {
-			return true
-		}
-	}
-	return false
-}
-
 func (this *recipeList) Eval(ctx *Context, attr string) (string, error) {
 	if attr != "" {
 		return "", NoAttributeError{ctx, this.pos, "list", attr}

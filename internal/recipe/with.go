@@ -18,10 +18,6 @@ func (this *recipeWith) String() string {
 	return fmt.Sprintf("RecipeWith{target=%v, depends=%v}", this.target, this.dependencies)
 }
 
-func (this *recipeWith) HasOutput() bool {
-	return true // this must always build
-}
-
 func (this *recipeWith) Eval(ctx *Context, attr string) (string, error) {
 	if attr != "" {
 		return "", NoAttributeError{ctx, this.pos, "with-statement", attr}
