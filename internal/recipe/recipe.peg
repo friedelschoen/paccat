@@ -8,7 +8,7 @@ Recipe <- require:Require? _ lines:Line* _ EOF {
         result.requiredAttributes = map[string]Evaluable{}
     }
 
-	result.attributes = collectPairs(toAnySlice[pair](lines.([]any)))
+	result.attributes = collectPairs(toAnySlice[pair](lines))
 
 	return result, nil
 }
@@ -42,7 +42,7 @@ Path <- val:[^ [\]]+ {
 Import <- "import" _ path:(Path / String) _ "{" _ params:ImportParams? _ "}" { 
 	pairs := map[string]Evaluable{}
 	if params != nil {
-		pairs = collectPairs(toAnySlice[pair](params.([]any)))
+		pairs = collectPairs(toAnySlice[pair](params))
 	}
 	return &recipeImport{c.pos, path.(Evaluable), pairs}, nil
 }
@@ -63,8 +63,16 @@ Dependencies <- "with" _ dependencies:Value _ target:Value {
 	return &recipeWith{c.pos, dependencies.(Evaluable), target.(Evaluable)}, nil
 }
 
-Output <- "output" _ always:("always" _)? script:Value {
-    return &recipeOutput{c.pos, script.(Evaluable), always != nil}, nil
+OutputOptions <- _ "always" { return func(o *recipeOutput) { o.always = true }, nil }
+               / _ "interpreter" _ "=" _ cmd:Value { return func(o *recipeOutput) { o.interpreter = cmd.(Evaluable) }, nil }
+               / _ "try" { return func(o *recipeOutput) { o.try = true }, nil }
+
+Output <- "output" options:OutputOptions* _ script:Value {
+	result := &recipeOutput{pos: c.pos, script: script.(Evaluable)}
+	for _, fun := range toAnySlice[outputOption](options) {
+		fun(result)
+	}
+	return result, nil
 }
 
 Value <- value:(List / String / Multiline / Import / Output / Dependencies / Surrounded / Reference) attr:(_ "->" _ val:Key { return positioned[string]{c.pos, val.(string)}, nil })? {
@@ -86,7 +94,7 @@ Multiline <- "\"\"" content:MultilineContent* "\"\"" {
     return makeString(c.pos, content), nil
 }
 
-StringContent <- StringInterpolation / !"${" chr:[^"\n\r] {   // syntax highlighting is fukkie wukkie -> "
+StringContent <- StringInterpolation / !"${" chr:[^"\n\r] {   // syntax highlighting -> "
     return positioned[[]byte]{c.pos, chr.([]byte)}, nil
 }
 

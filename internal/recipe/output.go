@@ -14,8 +14,13 @@ import (
 type recipeOutput struct {
 	pos    position
 	script Evaluable
-	always bool
+
+	always      bool
+	try         bool
+	interpreter Evaluable
 }
+
+type outputOption func(*recipeOutput)
 
 func (this *recipeOutput) String() string {
 	return fmt.Sprintf("RecipeOutput{%v}", this.script)
@@ -28,6 +33,16 @@ func (this *recipeOutput) HasOutput() bool {
 func (this *recipeOutput) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("output"))
 	this.script.WriteHash(hash)
+
+	if this.always {
+		hash.Write([]byte("always"))
+	}
+	if this.try {
+		hash.Write([]byte("try"))
+	}
+	if this.interpreter != nil {
+		this.interpreter.WriteHash(hash)
+	}
 }
 
 func createOutDir(hash uint64) string {

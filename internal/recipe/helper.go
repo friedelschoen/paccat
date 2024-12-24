@@ -68,9 +68,10 @@ func headTail[T any](head any, tail []any) []T {
 	return result
 }
 
-func toAnySlice[T any](input []any) []T {
-	result := make([]T, len(input))
-	for i, e := range input {
+func toAnySlice[T any](input any) []T {
+	inputslc := input.([]any)
+	result := make([]T, len(inputslc))
+	for i, e := range inputslc {
 		if e != nil {
 			result[i] = e.(T)
 		}
