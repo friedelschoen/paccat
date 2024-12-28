@@ -18,29 +18,29 @@ func (this *recipeImport) String() string {
 	return fmt.Sprintf("RecipeImport#%v{%v}", this.source, this.arguments)
 }
 
-func (this *recipeImport) Eval(ctx *Context, attr string) (string, error) {
+func (this *recipeImport) Eval(ctx *Context, attr string) (string, []StringSource, error) {
 	if attr == "" {
 		attr = DefaultAttribute
 	}
-	filename, err := this.source.Eval(ctx, "")
+	filename, _, err := this.source.Eval(ctx, "")
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	pathname := path.Join(ctx.workDir, filename)
 	recipe, err := ParseFile(pathname)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	newContext, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments)
+	newContext, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments, ctx.Database)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	value, ok := newContext.scope[attr] //(attr, false)
 	if !ok {
-		return "", UnknownAttributeError{ctx, this.pos, filename, attr}
+		return "", nil, UnknownAttributeError{ctx, this.pos, filename, attr}
 	}
 	return value.Eval(newContext, "")
 }

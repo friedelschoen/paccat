@@ -23,22 +23,25 @@ func (this *recipeList) String() string {
 	return builder.String()
 }
 
-func (this *recipeList) Eval(ctx *Context, attr string) (string, error) {
+func (this *recipeList) Eval(ctx *Context, attr string) (string, []StringSource, error) {
 	if attr != "" {
-		return "", NoAttributeError{ctx, this.pos, "list", attr}
+		return "", nil, NoAttributeError{ctx, this.pos, "list", attr}
 	}
 	builder := strings.Builder{}
+	sources := []StringSource{}
 	for i, content := range this.items {
 		if i > 0 {
 			builder.WriteString(" ")
 		}
-		str, err := content.Eval(ctx, "")
+		str, strSources, err := content.Eval(ctx, "")
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
+		sources = append(sources, offsetSources(strSources, builder.Len())...)
 		builder.WriteString(str)
 	}
-	return builder.String(), nil
+	sources = append(sources, StringSource{0, builder.Len(), this})
+	return builder.String(), sources, nil
 }
 
 func (this *recipeList) WriteHash(hash hash.Hash) {

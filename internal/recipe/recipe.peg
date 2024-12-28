@@ -64,8 +64,8 @@ Dependencies <- "with" _ dependencies:Value _ target:Value {
 }
 
 OutputOptions <- _ "always" { return func(o *recipeOutput) { o.always = true }, nil }
-               / _ "interpreter" _ "=" _ cmd:Value { return func(o *recipeOutput) { o.interpreter = cmd.(Evaluable) }, nil }
-               / _ "try" { return func(o *recipeOutput) { o.try = true }, nil }
+                 / _ "interpreter" _ "=" _ cmd:Value { return func(o *recipeOutput) { o.interpreter = cmd.(Evaluable) }, nil }
+  				 / _ "try" { return func(o *recipeOutput) { o.try = true }, nil }
 
 Output <- "output" options:OutputOptions* _ script:Value {
 	result := &recipeOutput{pos: c.pos, script: script.(Evaluable)}

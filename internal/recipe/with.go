@@ -3,9 +3,8 @@ package recipe
 import (
 	"fmt"
 	"hash"
+	"iter"
 	"strings"
-
-	"friedelschoen.io/paccat/internal/install"
 )
 
 type recipeWith struct {
@@ -18,18 +17,47 @@ func (this *recipeWith) String() string {
 	return fmt.Sprintf("RecipeWith{target=%v, depends=%v}", this.target, this.dependencies)
 }
 
-func (this *recipeWith) Eval(ctx *Context, attr string) (string, error) {
-	if attr != "" {
-		return "", NoAttributeError{ctx, this.pos, "with-statement", attr}
+func indexSplit(original string, delimiter byte) iter.Seq2[int, string] {
+	return func(yield func(int, string) bool) {
+		start := 0
+		for {
+			// Find the next index of the delimiter
+			index := strings.IndexByte(original[start:], delimiter)
+			if index == -1 {
+				// If no more delimiters, add the last part
+				part := original[start:]
+				if len(part) > 0 {
+					yield(start, part)
+				}
+				break
+			}
+
+			// Get the actual index in the original string
+			end := start + index
+			part := original[start:end]
+			if start != end {
+				yield(end, part)
+			}
+
+			// Move the start index past the delimiter
+			start = end + 1
+		}
 	}
-	depends, err := this.dependencies.Eval(ctx, "")
+}
+
+func (this *recipeWith) Eval(ctx *Context, attr string) (string, []StringSource, error) {
+	if attr != "" {
+		return "", nil, NoAttributeError{ctx, this.pos, "with-statement", attr}
+	}
+	depend, source, err := this.dependencies.Eval(ctx, "")
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	for _, dep := range strings.Split(depends, " ") {
-		db := install.PackageDatabase{}
-		db.Install("", dep)
+	for indx, dep := range indexSplit(depend, ' ') {
+		src := SourceAt(source, indx)[0]
+		name := fmt.Sprintf("%016x", EvaluableSum(src))
+		ctx.Database.Install(name, dep)
 	}
 
 	return this.target.Eval(ctx, "")

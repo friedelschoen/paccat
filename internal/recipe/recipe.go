@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"hash"
 	"path"
+
+	"friedelschoen.io/paccat/internal/install"
 )
 
 type Recipe struct {
@@ -16,13 +18,15 @@ func (this *Recipe) String() string {
 	return fmt.Sprintf("Recipe{ require=%s, attr=%s }", this.requiredAttributes, this.attributes)
 }
 
-func (this *Recipe) NewContext(filename string, params map[string]Evaluable) (*Context, error) {
+func (this *Recipe) NewContext(filename string, params map[string]Evaluable, db *install.PackageDatabase) (*Context, error) {
 	ctx := &Context{
 		currentRecipe: this,
 		scope:         this.attributes,
 		workDir:       path.Dir(filename),
 		filename:      path.Base(filename),
 		forceBuild:    false,
+
+		Database: db,
 	}
 
 	/* override attributes */

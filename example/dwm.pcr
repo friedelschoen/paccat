@@ -2,10 +2,12 @@ name = "dwm";
 
 workdir = import ./fetch.pcr {url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z"};
 
-build = with [
+deps = [
     import textselect.pcr {}
-] output ""
-    cp ${workdir}/dwm-6.5/* .
+];
+
+build = with deps output ""
+    cp -r ${workdir}/dwm-6.5/* .
     make
     make PREFIX=${out} install
 "";

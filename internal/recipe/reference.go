@@ -10,7 +10,7 @@ type recipeReference struct {
 	name string
 }
 
-func (this *recipeReference) Eval(ctx *Context, attr string) (string, error) {
+func (this *recipeReference) Eval(ctx *Context, attr string) (string, []StringSource, error) {
 	return ctx.Get(this.name, attr)
 }
 

@@ -15,12 +15,8 @@ func (this *recipeGetter) String() string {
 	return fmt.Sprintf("RecipeGetter#%s{%v}", this.attribute, this.target)
 }
 
-func (this *recipeGetter) Eval(ctx *Context) (string, error) {
-	value, err := this.target.Eval(ctx, this.attribute)
-	if err != nil {
-		return "", err
-	}
-	return value, nil
+func (this *recipeGetter) Eval(ctx *Context) (string, []StringSource, error) {
+	return this.target.Eval(ctx, this.attribute)
 }
 
 func (this *recipeGetter) WriteHash(hash hash.Hash) {

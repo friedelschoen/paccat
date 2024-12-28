@@ -11,14 +11,14 @@ type recipeStringLiteral struct {
 }
 
 func (this *recipeStringLiteral) String() string {
-	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", string(this.value))
+	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", this.value)
 }
 
-func (this *recipeStringLiteral) Eval(ctx *Context, attr string) (string, error) {
+func (this *recipeStringLiteral) Eval(ctx *Context, attr string) (string, []StringSource, error) {
 	if attr != "" {
-		return "", NoAttributeError{ctx, this.pos, "literal", attr}
+		return "", nil, NoAttributeError{ctx, this.pos, "literal", attr}
 	}
-	return string(this.value), nil
+	return this.value, []StringSource{{0, len(this.value), this}}, nil
 }
 
 func (this *recipeStringLiteral) WriteHash(hash hash.Hash) {

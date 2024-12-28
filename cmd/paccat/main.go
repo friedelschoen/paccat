@@ -7,6 +7,7 @@ import (
 	"hash/crc64"
 	"log"
 	"os"
+	"slices"
 
 	"friedelschoen.io/paccat/internal/install"
 	"friedelschoen.io/paccat/internal/recipe"
@@ -63,25 +64,31 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx, err := ast.(*recipe.Recipe).NewContext(filepath, nil)
+	ctx, err := ast.(*recipe.Recipe).NewContext(filepath, nil, &install.PackageDatabase{Prefix: "target/"})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *doinstall {
-		path, err := ctx.Get("build", "")
+		path, _, err := ctx.Get("build", "")
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
-		db := install.PackageDatabase{}
-		db.Install("", path)
+		ctx.Database.Install("root", path)
 	} else if *evaluate != "" {
-		result, err := ctx.Get(*evaluate, "")
-
+		result, sources, err := ctx.Get(*evaluate, "")
 		if err != nil {
 			log.Fatal("error while building: ", err)
 		}
 		fmt.Println(result)
+
+		slices.SortFunc(sources, func(left, right recipe.StringSource) int {
+			return left.Start - right.Start
+		})
+
+		for _, src := range sources {
+			fmt.Printf("{%3d-%3d} %v\n", src.Start, src.Start+src.Len, src.Value)
+		}
 
 		if !*noResult {
 			if err = makeSymlink(result); err != nil {

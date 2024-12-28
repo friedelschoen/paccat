@@ -41,40 +41,35 @@ func (this *recipeOutput) WriteHash(hash hash.Hash) {
 	}
 }
 
-func createOutDir(hash uint64) string {
-	name := fmt.Sprintf("%16x", hash)
-	return path.Join(util.GetCachedir(), name)
-}
-
-func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
+func (this *recipeOutput) Eval(ctx *Context, attr string) (string, []StringSource, error) {
 	if attr != "" {
-		return "", NoAttributeError{ctx, this.pos, "output-statement", attr}
+		return "", nil, NoAttributeError{ctx, this.pos, "output-statement", attr}
 	}
 
 	sum := EvaluableSum(this.script)
-	outpath := createOutDir(sum)
+	outpath := path.Join(util.GetCachedir(), sum)
 
 	if _, err := os.Stat(outpath); err == nil {
 		if !this.always && !ctx.forceBuild {
-			return outpath, nil
+			return outpath, []StringSource{{0, len(outpath), this}}, nil
 		}
 		if err = os.RemoveAll(outpath); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
-	workdir, err := os.MkdirTemp(os.TempDir(), "paccat-workdir-******")
+	workdir, err := os.MkdirTemp(os.TempDir(), "paccat-workdir-")
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
 	ctx.Set("out", outpath)
 	defer ctx.Unset("out")
 
-	script, err := this.script.Eval(ctx, "")
+	script, _, err := this.script.Eval(ctx, "")
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	cmd := exec.Command("sh")
@@ -82,12 +77,11 @@ func (this *recipeOutput) Eval(ctx *Context, attr string) (string, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Dir = workdir
-	err = cmd.Run()
-	if err != nil {
-		return "", err
+	if err = cmd.Run(); err != nil {
+		return "", nil, err
 	}
 
-	return outpath, nil
+	return outpath, []StringSource{{0, len(outpath), this}}, nil
 }
 
 func (this *recipeOutput) GetPosition() position {
