@@ -6,16 +6,40 @@ import (
 	"hash/crc64"
 )
 
+type Position struct {
+	Filename string  /* name of file */
+	Content  *string /* content of file */
+	Start    int     /* begin-character */
+	End      int     /* end of value */
+}
+
+func (this Position) Len() int {
+	return this.End - this.Start
+}
+
 type StringSource struct {
 	Start int
 	Len   int
-	Value Evaluable
+	Value *StringValue /* underlying string-value */
+}
+
+type Positioned interface {
+	GetPosition() Position
+}
+
+type Named interface {
+	GetName() string
 }
 
 type Evaluable interface {
-	Eval(*Context, string) (string, []StringSource, error)
+	Positioned
+	Eval(Context) (Value, error)
 	WriteHash(hash.Hash)
-	GetPosition() position
+}
+
+type Value interface {
+	Named
+	GetSource() Evaluable
 }
 
 func EvaluableSum(in Evaluable) string {
@@ -25,22 +49,40 @@ func EvaluableSum(in Evaluable) string {
 	return fmt.Sprintf("%016x", hash.Sum64())
 }
 
-func offsetSources(input []StringSource, offset int) []StringSource {
-	result := make([]StringSource, len(input))
-	for i, item := range input {
-		result[i] = StringSource{item.Start + offset, item.Len, item.Value}
+func CastValue[T Value](from Value) (T, error) {
+	var empty T
+	to, ok := from.(T)
+	if !ok {
+		return empty, NewRecipeError(from.GetSource().GetPosition(), fmt.Sprintf("unable to convert %s to %s", from.GetName(), to.GetName()))
 	}
-	return result
+	return to, nil
 }
 
-func SourceAt(input []StringSource, pos int) []Evaluable {
-	inside := make([]Evaluable, 0, len(input))
-
-	for _, item := range input {
-		if pos >= item.Start && pos < item.Start+item.Len {
-			inside = append(inside, item.Value)
-		}
+func CastString(from Value, ctx Context) (*StringValue, error) {
+	strValue, ok := from.(StringLike)
+	if !ok {
+		return nil, NewRecipeError(from.GetSource().GetPosition(), fmt.Sprintf("unable to convert %s to string", from.GetName()))
 	}
+	return strValue.ToString(ctx)
+}
 
-	return inside
+func CastBoolean(from Value, ctx Context) (bool, error) {
+	boolValue, ok := from.(BooleanLike)
+	if !ok {
+		return false, NewRecipeError(from.GetSource().GetPosition(), fmt.Sprintf("unable to convert %s to boolean", from.GetName()))
+	}
+	return boolValue.ToBoolean(ctx)
+}
+
+/* value-types */
+type StringLike interface {
+	ToString(Context) (*StringValue, error)
+}
+
+type BooleanLike interface {
+	ToBoolean(Context) (bool, error)
+}
+
+type DictLike interface {
+	GetAttrbute(string, Context) (Value, error)
 }

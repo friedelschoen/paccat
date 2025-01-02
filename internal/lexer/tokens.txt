@@ -1,0 +1,18 @@
+Root interp-end<-           }}
+Root path                   \.?/[a-zA-Z0-9._-]*
+Root arrow                  ->
+Root symbol                 [(){}[\].=,$\\;]
+Root multiline-begin->Multi ''
+Root string-begin->String   "
+Root keyword                panic|output|import
+Root ident                  [a-zA-Z0-9_]+
+Root .comment               #[^\n\r]*
+Root .space                 [ \t\n\r]
+
+String interp-begin->Root   {{
+String string-end<-         "
+String char                 .
+
+Multi interp-begin->Root    {{
+Multi multi-end<-           ''
+Multi char                  .|\s

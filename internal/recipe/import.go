@@ -1,7 +1,6 @@
 package recipe
 
 import (
-	"fmt"
 	"hash"
 	"path"
 )
@@ -9,48 +8,45 @@ import (
 const DefaultAttribute = "build"
 
 type recipeImport struct {
-	pos       position
-	source    Evaluable
-	arguments map[string]Evaluable
+	pos    Position
+	source Evaluable
 }
 
 func (this *recipeImport) String() string {
-	return fmt.Sprintf("RecipeImport#%v{%v}", this.source, this.arguments)
+	return "RecipeImport"
 }
 
-func (this *recipeImport) Eval(ctx *Context, attr string) (string, []StringSource, error) {
-	if attr == "" {
-		attr = DefaultAttribute
-	}
-	filename, _, err := this.source.Eval(ctx, "")
+func (this *recipeImport) Eval(ctx Context) (Value, error) {
+	filenameVal, err := this.source.Eval(ctx)
 	if err != nil {
-		return "", nil, err
+		return nil, WrapRecipeError(err, this.pos, "while evaluating import")
+	}
+	filename, err := CastString(filenameVal, ctx)
+	if err != nil {
+		return nil, WrapRecipeError(err, this.pos, "while evaluating import")
 	}
 
-	pathname := path.Join(ctx.workDir, filename)
+	pathname := path.Join(ctx.workdir, filename.Content)
 	recipe, err := ParseFile(pathname)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	newContext, err := recipe.(*Recipe).NewContext(path.Dir(pathname), this.arguments, ctx.Database)
+	newctx := Context{
+		workdir: path.Dir(pathname),
+	}
+	value, err := recipe.(Evaluable).Eval(newctx)
 	if err != nil {
-		return "", nil, err
+		return nil, WrapRecipeError(err, this.pos, "while evaluating import")
 	}
-
-	value, ok := newContext.scope[attr] //(attr, false)
-	if !ok {
-		return "", nil, UnknownAttributeError{ctx, this.pos, filename, attr}
-	}
-	return value.Eval(newContext, "")
+	return value, nil
 }
 
 func (this *recipeImport) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("import"))
 	this.source.WriteHash(hash)
-	writeHashMap(this.arguments, hash)
 }
 
-func (this *recipeImport) GetPosition() position {
+func (this *recipeImport) GetPosition() Position {
 	return this.pos
 }

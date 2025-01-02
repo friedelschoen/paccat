@@ -6,26 +6,27 @@ import (
 )
 
 type recipeStringLiteral struct {
-	pos   position
-	value string
+	pos     Position
+	content string
 }
 
 func (this *recipeStringLiteral) String() string {
-	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", this.value)
+	return fmt.Sprintf("RecipeStringLiteral#\"%s\"", this.content)
 }
 
-func (this *recipeStringLiteral) Eval(ctx *Context, attr string) (string, []StringSource, error) {
-	if attr != "" {
-		return "", nil, NoAttributeError{ctx, this.pos, "literal", attr}
-	}
-	return this.value, []StringSource{{0, len(this.value), this}}, nil
+func (this *recipeStringLiteral) Eval(ctx Context) (Value, error) {
+	return &StringValue{
+		source:       this,
+		Content:      this.content,
+		StringSource: []StringSource{},
+	}, nil
 }
 
 func (this *recipeStringLiteral) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("literal"))
-	hash.Write([]byte(this.value))
+	hash.Write([]byte(this.content))
 }
 
-func (this *recipeStringLiteral) GetPosition() position {
+func (this *recipeStringLiteral) GetPosition() Position {
 	return this.pos
 }

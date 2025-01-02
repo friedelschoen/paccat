@@ -2,14 +2,9 @@ package main
 
 import (
 	_ "embed"
-	"flag"
 	"fmt"
-	"hash/crc64"
-	"log"
 	"os"
-	"slices"
 
-	"friedelschoen.io/paccat/internal/install"
 	"friedelschoen.io/paccat/internal/recipe"
 )
 
@@ -39,69 +34,25 @@ func makeSymlink(result string) error {
 }
 
 func main() {
-	doinstall := flag.Bool("install", false, "Build the package")
-	evaluate := flag.String("evaluate", "", "Evaluate attribute")
-	dohash := flag.Bool("hash", false, "Hash Recipe and return")
-	noResult := flag.Bool("no-result", false, "Don't expect a path")
-
-	flag.BoolFunc("help", "prints help-message", func(string) error {
-		fmt.Print(logo)
-		flag.Usage()
-		os.Exit(0)
-		return nil
-	})
-	flag.Parse()
-
-	if flag.NArg() != 1 {
-		flag.Usage()
+	filename := os.Args[1]
+	eval, err := recipe.ParseFile(filename)
+	if err != nil {
+		recipe.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 
-	filepath := flag.Arg(0)
-
-	ast, err := recipe.ParseFile(filepath)
+	ctx := recipe.NewContext(filename)
+	value, err := eval.Eval(ctx)
 	if err != nil {
-		log.Fatal(err)
+		recipe.PrintTrace(os.Stdout, err)
+		os.Exit(1)
 	}
 
-	ctx, err := ast.(*recipe.Recipe).NewContext(filepath, nil, &install.PackageDatabase{Prefix: "target/"})
+	strValue, err := recipe.CastString(value, ctx)
 	if err != nil {
-		log.Fatal(err)
+		recipe.PrintTrace(os.Stdout, err)
+		os.Exit(1)
 	}
 
-	if *doinstall {
-		path, _, err := ctx.Get("build", "")
-		if err != nil {
-			log.Fatal("error while building: ", err)
-		}
-		ctx.Database.Install("root", path)
-	} else if *evaluate != "" {
-		result, sources, err := ctx.Get(*evaluate, "")
-		if err != nil {
-			log.Fatal("error while building: ", err)
-		}
-		fmt.Println(result)
-
-		slices.SortFunc(sources, func(left, right recipe.StringSource) int {
-			return left.Start - right.Start
-		})
-
-		for _, src := range sources {
-			fmt.Printf("{%3d-%3d} %v\n", src.Start, src.Start+src.Len, src.Value)
-		}
-
-		if !*noResult {
-			if err = makeSymlink(result); err != nil {
-				log.Print(err)
-			}
-		}
-	} else if *dohash {
-		table := crc64.MakeTable(crc64.ISO)
-		hash := crc64.New(table)
-		ast.(*recipe.Recipe).WriteHash(hash)
-		sum := hash.Sum64()
-		fmt.Printf("%016x", sum)
-	} else {
-		fmt.Printf("no operation\n")
-	}
+	fmt.Println(strValue.Content)
 }

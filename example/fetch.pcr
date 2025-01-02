@@ -1,9 +1,7 @@
-[ url, wget_option=" ", tar_options=" " ];
+require { url, wget_option=" ", tar_options=" " };
 
-name = "fetch";
-
-build = output ""
+build = output name="hello", exports={ PATH="/bin" } ""
     echo hello
-    mkdir -p ${out}
-    wget -O- ${wget_option} ${url} | tar -C ${out} -xv ${tar_options}
+    mkdir -p {{ $out }}
+    wget -O- {{ $wget_option }} {{ $url }} | tar -C {{ $out }} -xv {{$tar_options}}
 "";

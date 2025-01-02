@@ -1,46 +1,93 @@
 package recipe
 
 import (
-	"errors"
 	"fmt"
+	"io"
+	"strings"
 )
 
-var (
-	NoOutputError = errors.New("did not produce output")
-)
-
-func recipeError(ctx *Context, pos position, message string) string {
-	return fmt.Sprintf("%s:%d:%d: %s", ctx.filename, pos.line, pos.col, message)
+type RecipeError struct {
+	pos      Position
+	previous error
+	message  string
 }
 
-type NoAttributeError struct {
-	ctx       *Context
-	pos       position
-	object    string
-	attribute string
+func (this *RecipeError) Error() string {
+	return this.message
 }
 
-func (this NoAttributeError) Error() string {
-	return recipeError(this.ctx, this.pos, fmt.Sprintf("%s cannot have attribute: %s", this.object, this.attribute))
+func (this *RecipeError) GetPosition() Position {
+	return this.pos
 }
 
-type UnknownReferenceError struct {
-	ctx  *Context
-	pos  position
-	name string
+func NewRecipeError(pos Position, message string) error {
+	return &RecipeError{pos, nil, message}
 }
 
-func (this UnknownReferenceError) Error() string {
-	return recipeError(this.ctx, this.pos, fmt.Sprintf("unknown reference: %s", this.name))
+func WrapRecipeError(previous error, pos Position, message string) error {
+	if _, ok := previous.(*RecipeError); ok {
+		return &RecipeError{pos, previous, message}
+	} else if message != "" {
+		return &RecipeError{pos, nil, fmt.Sprintf("%s: %v", message, previous)}
+	} else {
+		return &RecipeError{pos, nil, previous.Error()}
+	}
 }
 
-type UnknownAttributeError struct {
-	ctx  *Context
-	pos  position
-	file string
-	name string
-}
+func PrintTrace(writer io.Writer, current error) {
+	for current != nil {
+		err, ok := current.(*RecipeError)
+		if !ok {
+			fmt.Fprintf(writer, "??: %v\n", current)
+			break
+		}
 
-func (this UnknownAttributeError) Error() string {
-	return recipeError(this.ctx, this.pos, fmt.Sprintf("recipe %s has no attribute: %s", this.file, this.name))
+		endOffset := 0
+		line := 0
+		var startLine, startOffset int
+
+		lines := strings.SplitAfter(*err.pos.Content, "\n")
+		for _, lineStr := range lines {
+			line++
+			beginOffset := endOffset
+			endOffset += len(lineStr)
+
+			if err.pos.Start > endOffset {
+				continue
+			}
+
+			if startLine == 0 {
+				startLine = line
+				startOffset = err.pos.Start - beginOffset
+			}
+
+			/* it's a oneliner */
+			if err.pos.Start >= beginOffset && err.pos.End < endOffset {
+				fmt.Fprintf(writer, "%3d | %s", line, lineStr)
+				writer.Write([]byte("    | ")) // Padding to align under text
+
+				padding := err.pos.Start - beginOffset
+				length := err.pos.Len()
+
+				for i := 0; i < padding; i++ {
+					writer.Write([]byte{' '})
+				}
+				writer.Write([]byte{'^'})
+				for i := 0; i < length-1; i++ {
+					writer.Write([]byte{'-'})
+				}
+				writer.Write([]byte{'\n'})
+			} else {
+				fmt.Fprintf(writer, "%3d |> %s", line, lineStr)
+			}
+
+			if err.pos.End < endOffset {
+				break
+			}
+		}
+
+		// Add the error message
+		fmt.Fprintf(writer, "%s:%d:%d: %s\n", err.pos.Filename, startLine, startOffset+1, err.message)
+		current = err.previous
+	}
 }

@@ -1,32 +1,45 @@
 package recipe
 
-import "friedelschoen.io/paccat/internal/install"
+import (
+	"fmt"
+	"path"
+)
 
 type Context struct {
-	filename      string
-	workDir       string               // directory of the recipe
-	currentRecipe *Recipe              // current recipe
-	scope         map[string]Evaluable // variables and attributes
-	forceBuild    bool                 // build output if directory exists
-	Database      *install.PackageDatabase
+	workdir string               // directory of the recipe
+	scope   map[string]Evaluable // variables and attributes
 }
 
-func (this *Context) AlwaysBuild() {
-	this.forceBuild = true
+func NewContext(filename string) Context {
+	return Context{
+		workdir: path.Dir(filename),
+		scope:   map[string]Evaluable{},
+	}
+}
+
+func (this *Context) Copy() Context {
+	newctx := Context{
+		workdir: this.workdir,
+		scope:   map[string]Evaluable{},
+	}
+
+	for key, value := range this.scope {
+		newctx.scope[key] = value
+	}
+
+	return newctx
 }
 
 func (this *Context) Set(key, value string) {
-	this.scope[key] = &recipeStringLiteral{position{}, value}
+	literal := fmt.Sprintf("\"%s\"", value)
+	this.scope[key] = &recipeStringLiteral{Position{"<eval>", &literal, 0, len(literal)}, value}
 }
 
 func (this *Context) Unset(key string) {
 	delete(this.scope, key)
 }
 
-func (this *Context) Get(name, attr string) (string, []StringSource, error) {
-	value, ok := this.scope[name]
-	if !ok {
-		return "", nil, UnknownReferenceError{this, position{}, name}
-	}
-	return value.Eval(this, attr)
+func (this *Context) Hash(name string) bool {
+	_, ok := this.scope[name]
+	return ok
 }

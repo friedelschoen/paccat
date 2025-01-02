@@ -1,0 +1,5 @@
+textselect = import textselect.pcr {};
+
+build = with [ $textselect ]: output ""
+    printenv | sort > {{ $out }}
+"";

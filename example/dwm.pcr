@@ -1,13 +1,15 @@
+require { url };
+
 name = "dwm";
 
-workdir = import ./fetch.pcr {url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z"};
+workdir = import ./fetch.pcr { url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z" };
 
-deps = [
-    import textselect.pcr {}
-];
-
-build = with deps output ""
-    cp -r ${workdir}/dwm-6.5/* .
+build = output {
+    cache = true,
+    dependency = [],
+    exports = { PATH="/bin" },
+} ""
+    cp -r {{ $workdir }}/dwm-6.5/* .
     make
-    make PREFIX=${out} install
+    make PREFIX={{ $out }} install
 "";
