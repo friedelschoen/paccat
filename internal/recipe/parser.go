@@ -119,6 +119,12 @@ func (this *parseState) parseDict() (Evaluable, *parseError) {
 	items := map[string]Evaluable{}
 tokenLoop:
 	for this.lex.Valid {
+		if len(items) > 0 {
+			_, err := this.expectTokenContent(",")
+			if err != nil {
+				break tokenLoop
+			}
+		}
 		ident, err := this.expectToken("ident")
 		if err != nil {
 			break tokenLoop
@@ -128,10 +134,6 @@ tokenLoop:
 			return nil, err
 		}
 		value, err := this.parseValue()
-		if err != nil {
-			return nil, err
-		}
-		_, err = this.expectTokenContent(";")
 		if err != nil {
 			return nil, err
 		}
@@ -373,6 +375,18 @@ tokenLoop:
 	return val, nil
 }
 
+func (this *parseState) parseFile() (Evaluable, *parseError) {
+	val, err := this.parseValue()
+	if err != nil {
+		return nil, err
+	}
+	_, err = this.expectToken("eof")
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
 func unique[T comparable](slc []T) []T {
 	for i := 0; i < len(slc); i++ {
 		for j := i + 1; j < len(slc); j++ {
@@ -396,7 +410,7 @@ func Parse(filename, content string) (Evaluable, error) {
 	}
 
 	lex.Next()
-	result, exp := parser.parseValue()
+	result, exp := parser.parseFile()
 	if exp != nil {
 		exp.expect = unique(exp.expect)
 		slices.Sort(exp.expect)
@@ -407,7 +421,12 @@ func Parse(filename, content string) (Evaluable, error) {
 			message.WriteString(token)
 			message.WriteString(", ")
 		}
-		fmt.Fprintf(&message, "but got `%s`", exp.got.Content)
+		if exp.got.Name == "illegal" {
+			message.WriteString("but got ")
+			message.WriteString(exp.got.Content)
+		} else {
+			fmt.Fprintf(&message, "but got `%s`", exp.got.Content)
+		}
 		return nil, NewRecipeError(pos, message.String())
 	}
 	return result, nil

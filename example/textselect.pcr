@@ -1,16 +1,17 @@
 output {
-    name = "textselect";
+    name = "textselect",
 
-    fetch = import ./name.pcr (name="hello", world="1");
+    fetch = import ./name.pcr (name="hello", world="1"),
 
-    repo = {
-        name = "fetch-textselect";
-        build = "git clone https://github.com/friedelschoen/textselect.git .";
-    };
+    repo = output {
+        name = "fetch-textselect",
+        build = "git clone https://github.com/friedelschoen/textselect.git ."
+    },
 
     script = ''
         make
-        mkdir -p {{ $sout }}/bin {{ $out }}/share/man/man1
+        mkdir -p {{ $out }}/bin {{ $out }}/share/man/man1
         make PREFIX={{ $out }} install
-    '';
+    ''
 }
+"ello"

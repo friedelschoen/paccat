@@ -1,12 +1,20 @@
 package lexer
 
 import (
+	"fmt"
 	"regexp"
 )
 
 //go:generate python3 gentokens.py tokens.txt tokens.go
 
-type state int
+type state string
+
+const (
+	stateRoot   = ""
+	stateMulti  = "multiline-string"
+	stateString = "string"
+)
+
 type stateFunc func([]state) []state
 
 type token struct {
@@ -15,12 +23,6 @@ type token struct {
 	stateChange stateFunc
 	skip        bool
 	expr        *regexp.Regexp
-}
-
-func stateKeep() stateFunc {
-	return func(in []state) []state {
-		return in
-	}
 }
 
 func statePop() stateFunc {
@@ -34,10 +36,6 @@ func statePush(s state) stateFunc {
 		return append([]state{s}, in...)
 	}
 }
-
-const (
-	maxToken = 128
-)
 
 type Token struct {
 	Start, End    int
@@ -63,11 +61,33 @@ func NewTokenizer(text string) *Tokenizer {
 }
 
 func (this *Tokenizer) Next() bool {
+	if len(this.current) == 0 {
+		if len(this.current) == 0 {
+			this.Token = Token{
+				Start:   this.Pos,
+				End:     this.Pos + 1,
+				Name:    "illegal",
+				Content: "empty state",
+			}
+			this.Valid = false
+			return false
+		}
+	}
+
 	if this.Pos >= len(this.Text) {
-		this.Token = Token{
-			Start: this.Pos - 1,
-			End:   this.Pos,
-			Name:  "eof",
+		if len(this.current) != 1 {
+			this.Token = Token{
+				Start:   this.Pos - 1,
+				End:     this.Pos,
+				Name:    "illegal",
+				Content: fmt.Sprintf("unclosed %s", this.current[0]),
+			}
+		} else {
+			this.Token = Token{
+				Start: this.Pos - 1,
+				End:   this.Pos,
+				Name:  "eof",
+			}
 		}
 		this.Valid = false
 		return false
@@ -83,15 +103,8 @@ func (this *Tokenizer) Next() bool {
 			continue
 		}
 		length := loc[1] // loc[0] is always 0
-		this.current = tok.stateChange(this.current)
-		if len(this.current) == 0 {
-			this.Token = Token{
-				Start: this.Pos,
-				End:   this.Pos + 1,
-				Name:  "illegal",
-			}
-			this.Valid = false
-			return false
+		if tok.stateChange != nil {
+			this.current = tok.stateChange(this.current)
 		}
 		content := this.Text[this.Pos : this.Pos+length]
 		this.Pos += length
@@ -110,9 +123,10 @@ func (this *Tokenizer) Next() bool {
 	}
 
 	this.Token = Token{
-		Start: this.Pos,
-		End:   this.Pos + 1,
-		Name:  "illegal",
+		Start:   this.Pos,
+		End:     this.Pos + 1,
+		Name:    "illegal",
+		Content: fmt.Sprintf("illegal character %c", this.Text[this.Pos]),
 	}
 	this.Valid = false
 	return false
