@@ -5,13 +5,13 @@ output {
 
     repo = output {
         name = "fetch-textselect",
-        build = "git clone https://github.com/friedelschoen/textselect.git ."
+        script = "git clone https://github.com/friedelschoen/textselect.git {{ $out }}"
     },
 
     script = ''
+        cd {{ $repo }}
         make
         mkdir -p {{ $out }}/bin {{ $out }}/share/man/man1
         make PREFIX={{ $out }} install
     ''
 }
-"ello"

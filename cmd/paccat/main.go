@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"friedelschoen.io/paccat/internal/recipe"
+	"friedelschoen.io/paccat/internal/ast"
 )
 
 //go:embed cat.txt
@@ -35,22 +35,22 @@ func makeSymlink(result string) error {
 
 func main() {
 	filename := os.Args[1]
-	eval, err := recipe.ParseFile(filename)
+	eval, err := ast.ParseFile(filename)
 	if err != nil {
-		recipe.PrintTrace(os.Stdout, err)
+		ast.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 
-	ctx := recipe.NewContext(filename)
+	ctx := ast.NewContext(filename)
 	value, err := eval.Eval(ctx)
 	if err != nil {
-		recipe.PrintTrace(os.Stdout, err)
+		ast.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 
-	strValue, err := recipe.CastString(value, ctx)
+	strValue, err := ast.CastString(value, ctx)
 	if err != nil {
-		recipe.PrintTrace(os.Stdout, err)
+		ast.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 

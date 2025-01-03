@@ -3,7 +3,7 @@ package lexer
 import "regexp"
 
 var tokens = []token{
-    { state: stateRoot, name: "interp-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(}})") },
+    { state: stateRoot, name: "interp-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(}})"), },
     { state: stateRoot, name: "path", stateChange: nil, skip: false, expr: regexp.MustCompile("^(\\.?/[a-zA-Z0-9._-]*)") },
     { state: stateRoot, name: "arrow", stateChange: nil, skip: false, expr: regexp.MustCompile("^(->)") },
     { state: stateRoot, name: "symbol", stateChange: nil, skip: false, expr: regexp.MustCompile("^([(){}[\\].=,$\\\\;])") },

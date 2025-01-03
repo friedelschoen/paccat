@@ -1,4 +1,4 @@
-package recipe
+package ast
 
 //go:generate pigeon -o parser.go recipe.peg
 
