@@ -10,12 +10,14 @@ type recipeList struct {
 	items []Evaluable
 }
 
+type ListValue recipeList
+
 func (this *recipeList) String() string {
 	return "RecipeList"
 }
 
 func (this *recipeList) Eval(ctx Context) (Value, error) {
-	return this, nil
+	return (*ListValue)(this), nil
 }
 
 func (this *recipeList) WriteHash(hash hash.Hash) {
@@ -29,15 +31,15 @@ func (this *recipeList) GetPosition() Position {
 	return this.pos
 }
 
-func (this *recipeList) GetSource() Evaluable {
-	return this
+func (this *ListValue) GetSource() Evaluable {
+	return (*recipeList)(this)
 }
 
-func (this *recipeList) GetName() string {
+func (this *ListValue) GetName() string {
 	return "list"
 }
 
-func (this *recipeList) ToString(ctx Context) (*StringValue, error) {
+func (this *ListValue) ToString(ctx Context) (*StringValue, error) {
 	builder := strings.Builder{}
 	sources := []StringSource{}
 	for _, item := range this.items {
@@ -52,5 +54,5 @@ func (this *recipeList) ToString(ctx Context) (*StringValue, error) {
 		sources = append(sources, StringSource{builder.Len(), len(strValue.Content), strValue})
 		builder.WriteString(strValue.Content)
 	}
-	return &StringValue{this, builder.String(), sources}, nil
+	return &StringValue{this.GetSource(), builder.String(), sources}, nil
 }

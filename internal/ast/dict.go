@@ -10,12 +10,14 @@ type recipeDict struct {
 	items map[string]Evaluable
 }
 
+type DictValue recipeDict
+
 func (this *recipeDict) String() string {
 	return "RecipeDict"
 }
 
 func (this *recipeDict) Eval(ctx Context) (Value, error) {
-	return this, nil
+	return (*DictValue)(this), nil
 }
 
 func (this *recipeDict) WriteHash(hash hash.Hash) {
@@ -29,15 +31,15 @@ func (this *recipeDict) GetPosition() Position {
 	return this.pos
 }
 
-func (this *recipeDict) GetSource() Evaluable {
-	return this
+func (this *DictValue) GetSource() Evaluable {
+	return (*recipeDict)(this)
 }
 
-func (this *recipeDict) GetName() string {
+func (this *DictValue) GetName() string {
 	return "dict"
 }
 
-func (this *recipeDict) GetAttrbute(ctx Context, attr string) (Value, error) {
+func (this *DictValue) GetAttrbute(ctx Context, attr string) (Value, error) {
 	eval, ok := this.items[attr]
 	if !ok {
 		return nil, NewRecipeError(this.pos, fmt.Sprintf("unable to get `%s`, not defined in dict", attr))

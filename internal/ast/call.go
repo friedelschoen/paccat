@@ -20,7 +20,7 @@ func (this *recipeCall) Eval(ctx Context) (Value, error) {
 	if err != nil {
 		return nil, WrapRecipeError(err, this.pos, "while trying to call value")
 	}
-	lambda, err := CastValue[*recipeLambda](value)
+	lambda, err := CastValue[*LambdaValue](value)
 	if err != nil {
 		return nil, WrapRecipeError(err, this.pos, "while trying to call value")
 	}

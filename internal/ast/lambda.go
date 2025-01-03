@@ -11,8 +11,10 @@ type recipeLambda struct {
 	args   map[string]Evaluable
 }
 
+type LambdaValue recipeLambda
+
 func (this *recipeLambda) Eval(ctx Context) (Value, error) {
-	return this, nil
+	return (*LambdaValue)(this), nil
 }
 
 func (this *recipeLambda) String() string {
@@ -34,14 +36,14 @@ func (this *recipeLambda) GetPosition() Position {
 	return this.pos
 }
 
-func (this *recipeLambda) ToString(ctx Context) (*StringValue, error) {
+func (this *LambdaValue) ToString(ctx Context) (*StringValue, error) {
 	return nil, NewRecipeError(this.pos, "unable to convert a lambda to string")
 }
 
-func (this *recipeLambda) GetSource() Evaluable {
-	return this
+func (this *LambdaValue) GetSource() Evaluable {
+	return (*recipeLambda)(this)
 }
 
-func (this *recipeLambda) GetName() string {
+func (this *LambdaValue) GetName() string {
 	return "lambda"
 }

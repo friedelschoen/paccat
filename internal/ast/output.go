@@ -64,13 +64,13 @@ func (this *recipeOutput) Exports(ctx Context) (map[string][]string, error) {
 			return nil, WrapRecipeError(err, this.pos, "while evaluating output")
 		}
 		switch value := anyValue.(type) {
-		case *recipeDict:
+		case *DictValue:
 			for key, attr := range value.items {
 				attrValue, err := attr.Eval(ctx)
 				if err != nil {
 					return nil, WrapRecipeError(err, this.pos, "while evaluating output")
 				}
-				if listval, ok := attrValue.(*recipeList); ok {
+				if listval, ok := attrValue.(*ListValue); ok {
 					vars := make([]string, len(listval.items))
 					for i, item := range listval.items {
 						itemValue, err := item.Eval(ctx)
