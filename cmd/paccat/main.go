@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"friedelschoen.io/paccat/internal/ast"
+	"friedelschoen.io/paccat/internal/errors"
+	"friedelschoen.io/paccat/internal/parser"
+	"friedelschoen.io/paccat/internal/types"
 )
 
 //go:embed cat.txt
@@ -35,22 +37,22 @@ func makeSymlink(result string) error {
 
 func main() {
 	filename := os.Args[1]
-	eval, err := ast.ParseFile(filename)
+	eval, err := parser.ParseFile(filename)
 	if err != nil {
-		ast.PrintTrace(os.Stdout, err)
+		errors.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 
-	ctx := ast.NewContext(filename)
-	value, err := eval.Eval(ctx)
+	ctx := types.NewContext(filename)
+	value, err := ctx.Evaluate(eval)
 	if err != nil {
-		ast.PrintTrace(os.Stdout, err)
+		errors.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 
-	strValue, err := ast.CastString(value, ctx)
+	strValue, err := types.CastString(value, ctx)
 	if err != nil {
-		ast.PrintTrace(os.Stdout, err)
+		errors.PrintTrace(os.Stdout, err)
 		os.Exit(1)
 	}
 

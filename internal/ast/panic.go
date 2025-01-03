@@ -3,35 +3,24 @@ package ast
 import (
 	"fmt"
 	"hash"
+
+	"friedelschoen.io/paccat/internal/errors"
 )
 
-type recipePanic struct {
-	pos     Position
-	message Evaluable
+type PanicNode struct {
+	Pos     errors.Position
+	Message Node
 }
 
-func (this *recipePanic) Eval(ctx Context) (Value, error) {
-	value, err := this.message.Eval(ctx)
-	if err != nil {
-		return nil, WrapRecipeError(err, this.pos, "while evaluating panic")
-	}
-	strValue, err := CastString(value, ctx)
-	if err != nil {
-		return nil, WrapRecipeError(err, this.pos, "while evaluating panic")
-	}
-
-	return nil, NewRecipeError(this.pos, strValue.Content)
-}
-
-func (this *recipePanic) String() string {
+func (this *PanicNode) String() string {
 	return fmt.Sprintf("RecipePanic")
 }
 
-func (this *recipePanic) WriteHash(hash hash.Hash) {
+func (this *PanicNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("panic"))
-	this.message.WriteHash(hash)
+	this.Message.WriteHash(hash)
 }
 
-func (this *recipePanic) GetPosition() Position {
-	return this.pos
+func (this *PanicNode) GetPosition() errors.Position {
+	return this.Pos
 }

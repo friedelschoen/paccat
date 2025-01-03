@@ -3,28 +3,24 @@ package ast
 import (
 	"fmt"
 	"hash"
+
+	"friedelschoen.io/paccat/internal/errors"
 )
 
-type recipeLambda struct {
-	pos    Position
-	target Evaluable
-	args   map[string]Evaluable
+type LambdaNode struct {
+	Pos    errors.Position
+	Target Node
+	Args   map[string]Node
 }
 
-type LambdaValue recipeLambda
-
-func (this *recipeLambda) Eval(ctx Context) (Value, error) {
-	return (*LambdaValue)(this), nil
+func (this *LambdaNode) String() string {
+	return fmt.Sprintf("RecipeLambda#{%v}{%v}", this.Args, this.Target)
 }
 
-func (this *recipeLambda) String() string {
-	return fmt.Sprintf("RecipeLambda#{%v}{%v}", this.args, this.target)
-}
-
-func (this *recipeLambda) WriteHash(hash hash.Hash) {
+func (this *LambdaNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("lambda"))
-	this.target.WriteHash(hash)
-	for key, value := range this.args {
+	this.Target.WriteHash(hash)
+	for key, value := range this.Args {
 		hash.Write([]byte(key))
 		if value != nil {
 			value.WriteHash(hash)
@@ -32,18 +28,6 @@ func (this *recipeLambda) WriteHash(hash hash.Hash) {
 	}
 }
 
-func (this *recipeLambda) GetPosition() Position {
-	return this.pos
-}
-
-func (this *LambdaValue) ToString(ctx Context) (*StringValue, error) {
-	return nil, NewRecipeError(this.pos, "unable to convert a lambda to string")
-}
-
-func (this *LambdaValue) GetSource() Evaluable {
-	return (*recipeLambda)(this)
-}
-
-func (this *LambdaValue) GetName() string {
-	return "lambda"
+func (this *LambdaNode) GetPosition() errors.Position {
+	return this.Pos
 }

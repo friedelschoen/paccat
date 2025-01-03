@@ -1,10 +1,21 @@
-package ast
+package errors
 
 import (
 	"fmt"
 	"io"
 	"strings"
 )
+
+type Position struct {
+	Filename string  /* name of file */
+	Content  *string /* content of file */
+	Start    int     /* begin-character */
+	End      int     /* end of value */
+}
+
+func (this Position) Len() int {
+	return this.End - this.Start
+}
 
 type RecipeError struct {
 	pos      Position

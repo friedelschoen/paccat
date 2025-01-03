@@ -1,6 +1,6 @@
 import sys
 
-PACKAGE = "lexer"
+PACKAGE = "parser"
 
 file = open(sys.argv[1])
 output = open(sys.argv[2], "w")

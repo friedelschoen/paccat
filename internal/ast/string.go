@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"hash"
 	"strings"
+
+	"friedelschoen.io/paccat/internal/errors"
 )
 
-type recipeString struct {
-	pos     Position
-	content []Evaluable
+type StringNode struct {
+	Pos     errors.Position
+	Content []Node
 }
 
-func (this *recipeString) String() string {
+func (this *StringNode) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("RecipeString{")
-	for i, content := range this.content {
+	for i, content := range this.Content {
 		if i > 0 {
 			builder.WriteString(", ")
 		}
@@ -23,58 +25,13 @@ func (this *recipeString) String() string {
 	return builder.String()
 }
 
-func (this *recipeString) Eval(ctx Context) (Value, error) {
-	builder := strings.Builder{}
-	sources := []StringSource{}
-	for _, content := range this.content {
-		value, err := content.Eval(ctx)
-		if err != nil {
-			return nil, err
-		}
-		strValue, err := CastString(value, ctx)
-		if err != nil {
-			return nil, err
-		}
-		sources = append(sources, StringSource{builder.Len(), len(strValue.Content), strValue})
-		builder.WriteString(strValue.Content)
-	}
-	return &StringValue{this, builder.String(), sources}, nil
-}
-
-func (this *recipeString) WriteHash(hash hash.Hash) {
+func (this *StringNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("string"))
-	for _, content := range this.content {
+	for _, content := range this.Content {
 		content.WriteHash(hash)
 	}
 }
 
-func (this *recipeString) GetPosition() Position {
-	return this.pos
-}
-
-type StringValue struct {
-	source       Evaluable
-	Content      string
-	StringSource []StringSource
-}
-
-func (this *StringValue) GetSource() Evaluable {
-	return this.source
-}
-
-func (this *StringValue) GetName() string {
-	return "string"
-}
-
-func (this *StringValue) ToString(ctx Context) (*StringValue, error) {
-	return this, nil
-}
-
-func (this *StringValue) ValueAt(pos int) *StringValue {
-	for _, item := range this.StringSource {
-		if pos >= item.Start && pos < item.Start+item.Len {
-			return item.Value
-		}
-	}
-	return this
+func (this *StringNode) GetPosition() errors.Position {
+	return this.Pos
 }
