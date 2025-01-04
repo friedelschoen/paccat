@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"io"
 
 	"friedelschoen.io/paccat/internal/ast"
 	"friedelschoen.io/paccat/internal/errors"
@@ -10,6 +11,7 @@ import (
 type Value interface {
 	GetName() string
 	GetSource() ast.Node
+	ToJSON(Context, io.Writer) error
 }
 
 func CastValue[T Value](from Value) (T, error) {
