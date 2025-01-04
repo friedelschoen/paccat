@@ -75,6 +75,9 @@ func PrintTrace(writer io.Writer, current error) {
 			/* it's a oneliner */
 			if err.pos.Start >= beginOffset && err.pos.End < endOffset {
 				fmt.Fprintf(writer, "%3d | %s", line, lineStr)
+				if lineStr[len(lineStr)-1] != '\n' {
+					fmt.Fprintln(writer)
+				}
 				writer.Write([]byte("    | ")) // Padding to align under text
 
 				padding := err.pos.Start - beginOffset
@@ -90,6 +93,9 @@ func PrintTrace(writer io.Writer, current error) {
 				writer.Write([]byte{'\n'})
 			} else {
 				fmt.Fprintf(writer, "%3d |> %s", line, lineStr)
+				if lineStr[len(lineStr)-1] != '\n' {
+					fmt.Fprintln(writer)
+				}
 			}
 
 			if err.pos.End < endOffset {
