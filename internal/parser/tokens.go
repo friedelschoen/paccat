@@ -2,21 +2,35 @@ package parser
 
 import "regexp"
 
-var tokens = []token{
-	{state: stateRoot, name: "interp-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(}})")},
-	{state: stateRoot, name: "path", stateChange: nil, skip: false, expr: regexp.MustCompile("^(\\.?/[a-zA-Z0-9._-]*)")},
-	{state: stateRoot, name: "arrow", stateChange: nil, skip: false, expr: regexp.MustCompile("^(->)")},
-	{state: stateRoot, name: "symbol", stateChange: nil, skip: false, expr: regexp.MustCompile("^([(){}[\\].=,$\\\\;])")},
-	{state: stateRoot, name: "multiline-begin", stateChange: statePush(stateMulti), skip: false, expr: regexp.MustCompile("^('')")},
-	{state: stateRoot, name: "string-begin", stateChange: statePush(stateString), skip: false, expr: regexp.MustCompile("^(\")")},
-	{state: stateRoot, name: "keyword", stateChange: nil, skip: false, expr: regexp.MustCompile("^(panic|output|import)")},
-	{state: stateRoot, name: "ident", stateChange: nil, skip: false, expr: regexp.MustCompile("^([a-zA-Z0-9_]+)")},
-	{state: stateRoot, name: "comment", stateChange: nil, skip: true, expr: regexp.MustCompile("^(#[^\\n\\r]*)")},
-	{state: stateRoot, name: "space", stateChange: nil, skip: true, expr: regexp.MustCompile("^([ \\t\\n\\r])")},
-	{state: stateString, name: "interp-begin", stateChange: statePush(stateRoot), skip: false, expr: regexp.MustCompile("^({{)")},
-	{state: stateString, name: "string-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(\")")},
-	{state: stateString, name: "char", stateChange: nil, skip: false, expr: regexp.MustCompile("^(.)")},
-	{state: stateMulti, name: "interp-begin", stateChange: statePush(stateRoot), skip: false, expr: regexp.MustCompile("^({{)")},
-	{state: stateMulti, name: "multi-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^('')")},
-	{state: stateMulti, name: "char", stateChange: nil, skip: false, expr: regexp.MustCompile("^(.|\\s)")},
+type stateFunc func([]state) []state
+
+func statePop() stateFunc {
+	return func(in []state) []state {
+		return in[1:]
+	}
+}
+
+func statePush(s state) stateFunc {
+	return func(in []state) []state {
+		return append([]state{s}, in...)
+	}
+}
+
+var tokens = []tokenDefine{
+	{state: "root", name: "interp-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(}})")},
+	{state: "root", name: "path", stateChange: nil, skip: false, expr: regexp.MustCompile("^(\\.?/[a-zA-Z0-9._-]*)")},
+	{state: "root", name: "arrow", stateChange: nil, skip: false, expr: regexp.MustCompile("^(->)")},
+	{state: "root", name: "symbol", stateChange: nil, skip: false, expr: regexp.MustCompile("^([(){}[\\].=,$\\\\;])")},
+	{state: "root", name: "multiline-begin", stateChange: statePush("multi"), skip: false, expr: regexp.MustCompile("^('')")},
+	{state: "root", name: "string-begin", stateChange: statePush("string"), skip: false, expr: regexp.MustCompile("^(\")")},
+	{state: "root", name: "keyword", stateChange: nil, skip: false, expr: regexp.MustCompile("^(panic|output|import)")},
+	{state: "root", name: "ident", stateChange: nil, skip: false, expr: regexp.MustCompile("^([a-zA-Z0-9_]+)")},
+	{state: "root", name: "comment", stateChange: nil, skip: true, expr: regexp.MustCompile("^(#[^\\n\\r]*)")},
+	{state: "root", name: "space", stateChange: nil, skip: true, expr: regexp.MustCompile("^([ \\t\\n\\r])")},
+	{state: "string", name: "interp-begin", stateChange: statePush("root"), skip: false, expr: regexp.MustCompile("^({{)")},
+	{state: "string", name: "string-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(\")")},
+	{state: "string", name: "char", stateChange: nil, skip: false, expr: regexp.MustCompile("^(.)")},
+	{state: "multi", name: "interp-begin", stateChange: statePush("root"), skip: false, expr: regexp.MustCompile("^({{)")},
+	{state: "multi", name: "multi-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^('')")},
+	{state: "multi", name: "char", stateChange: nil, skip: false, expr: regexp.MustCompile("^(.|\\s)")},
 }

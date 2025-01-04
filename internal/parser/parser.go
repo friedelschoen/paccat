@@ -185,7 +185,10 @@ tokenLoop:
 		return nil, err
 	}
 
-	return &ast.ListNode{this.newPos(begin, end), items}, nil
+	return &ast.ListNode{
+		Pos:   this.newPos(begin, end),
+		Items: items,
+	}, nil
 }
 
 func (this *parseState) parseSurrounded() (ast.Node, *parseError) {
@@ -214,7 +217,10 @@ func (this *parseState) parseReference() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ReferenceNode{this.newPos(begin, ident), ident.Content}, nil
+	return &ast.ReferenceNode{
+		Pos:  this.newPos(begin, ident),
+		Name: ident.Content,
+	}, nil
 }
 
 func (this *parseState) parseOutput() (ast.Node, *parseError) {
@@ -226,8 +232,15 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	pos := errors.Position{this.filename, &this.lex.Text, begin.Start, options.GetPosition().End}
-	return &ast.OutputNode{pos, options.(*ast.DictNode).Items}, nil
+	return &ast.OutputNode{
+		Pos: errors.Position{
+			Filename: this.filename,
+			Content:  &this.lex.Text,
+			Start:    begin.Start,
+			End:      options.GetPosition().End,
+		},
+		Options: options.(*ast.DictNode).Items,
+	}, nil
 }
 
 func (this *parseState) parseImport() (ast.Node, *parseError) {
@@ -239,8 +252,15 @@ func (this *parseState) parseImport() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	pos := errors.Position{this.filename, &this.lex.Text, begin.Start, source.GetPosition().End}
-	return &ast.ImportNode{pos, source}, nil
+	return &ast.ImportNode{
+		Pos: errors.Position{
+			Filename: this.filename,
+			Content:  &this.lex.Text,
+			Start:    begin.Start,
+			End:      source.GetPosition().End,
+		},
+		Source: source,
+	}, nil
 }
 
 func (this *parseState) parsePanic() (ast.Node, *parseError) {
@@ -252,8 +272,15 @@ func (this *parseState) parsePanic() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	pos := errors.Position{this.filename, &this.lex.Text, begin.Start, message.GetPosition().End}
-	return &ast.PanicNode{pos, message}, nil
+	return &ast.PanicNode{
+		Pos: errors.Position{
+			Filename: this.filename,
+			Content:  &this.lex.Text,
+			Start:    begin.Start,
+			End:      message.GetPosition().End,
+		},
+		Message: message,
+	}, nil
 }
 
 func (this *parseState) parseString(wrap string) func() (ast.Node, *parseError) {
@@ -284,8 +311,16 @@ func (this *parseState) parseString(wrap string) func() (ast.Node, *parseError) 
 					return nil, exp
 				}
 				if builder.Len() > 0 {
-					pos := errors.Position{this.filename, &this.lex.Text, currentPos, currentPos + builder.Len()}
-					result = append(result, &ast.LiteralNode{pos, builder.String()}, value)
+					node := &ast.LiteralNode{
+						Pos: errors.Position{
+							Filename: this.filename,
+							Content:  &this.lex.Text,
+							Start:    currentPos,
+							End:      currentPos + builder.Len(),
+						},
+						Content: builder.String(),
+					}
+					result = append(result, node, value)
 					builder.Reset()
 				} else {
 					result = append(result, value)
@@ -305,11 +340,22 @@ func (this *parseState) parseString(wrap string) func() (ast.Node, *parseError) 
 		}
 
 		if builder.Len() > 0 {
-			pos := errors.Position{this.filename, &this.lex.Text, currentPos, currentPos + builder.Len()}
-			result = append(result, &ast.LiteralNode{pos, builder.String()})
+			node := &ast.LiteralNode{
+				Pos: errors.Position{
+					Filename: this.filename,
+					Content:  &this.lex.Text,
+					Start:    currentPos,
+					End:      currentPos + builder.Len(),
+				},
+				Content: builder.String(),
+			}
+			result = append(result, node)
 		}
 
-		return &ast.StringNode{this.newPos(begin, end), result}, nil
+		return &ast.StringNode{
+			Pos:     this.newPos(begin, end),
+			Content: result,
+		}, nil
 	}
 }
 
@@ -318,7 +364,10 @@ func (this *parseState) parsePath() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.LiteralNode{this.newPos(val, val), val.Content}, nil
+	return &ast.LiteralNode{
+		Pos:     this.newPos(val, val),
+		Content: val.Content,
+	}, nil
 }
 
 func (this *parseState) parseValue() (ast.Node, *parseError) {
@@ -348,7 +397,11 @@ tokenLoop:
 			if err != nil {
 				return nil, err
 			}
-			val = &ast.GetterNode{this.newPos(begin, ident), val, ident.Content}
+			val = &ast.GetterNode{
+				Pos:       this.newPos(begin, ident),
+				Target:    val,
+				Attribute: ident.Content,
+			}
 		case "(":
 			this.lex.Next()
 			args := map[string]ast.Node{}
@@ -378,7 +431,11 @@ tokenLoop:
 			if err != nil {
 				return nil, err
 			}
-			val = &ast.CallNode{this.newPos(begin, end), val, args}
+			val = &ast.CallNode{
+				Pos:    this.newPos(begin, end),
+				Target: val,
+				Args:   args,
+			}
 		default:
 			break tokenLoop
 		}
