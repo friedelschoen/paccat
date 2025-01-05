@@ -11,19 +11,16 @@ import (
 
 type OutputNode struct {
 	Pos     errors.Position
-	Options map[string]Node
+	Options LiteralMap
 }
 
-func (this *OutputNode) String() string {
-	return fmt.Sprintf("RecipeOutput{%v}", this.Options)
+func (this *OutputNode) Name() string {
+	return "output"
 }
 
 func (this *OutputNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("output"))
-	for key, value := range this.Options {
-		hash.Write([]byte(key))
-		value.WriteHash(hash)
-	}
+	this.Options.WriteHash(hash)
 }
 
 func appendEnv(env []string, key string, value string) []string {
@@ -40,13 +37,14 @@ func appendEnv(env []string, key string, value string) []string {
 func (this *OutputNode) ScriptSum() string {
 	table := crc64.MakeTable(crc64.ISO)
 	hash := crc64.New(table)
-	for key, value := range this.Options {
-		hash.Write([]byte(key))
-		value.WriteHash(hash)
-	}
+	this.WriteHash(hash)
 	return fmt.Sprintf("%016x", hash.Sum64())
 }
 
 func (this *OutputNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *OutputNode) GetChildren() []Node {
+	return []Node{this.Options}
 }

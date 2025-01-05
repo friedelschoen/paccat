@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"fmt"
 	"hash"
 
 	"friedelschoen.io/paccat/internal/errors"
@@ -12,8 +11,8 @@ type PanicNode struct {
 	Message Node
 }
 
-func (this *PanicNode) String() string {
-	return fmt.Sprintf("RecipePanic")
+func (this *PanicNode) Name() string {
+	return "panic"
 }
 
 func (this *PanicNode) WriteHash(hash hash.Hash) {
@@ -23,4 +22,8 @@ func (this *PanicNode) WriteHash(hash hash.Hash) {
 
 func (this *PanicNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *PanicNode) GetChildren() []Node {
+	return []Node{this.Message}
 }

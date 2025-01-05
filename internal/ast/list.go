@@ -11,8 +11,8 @@ type ListNode struct {
 	Items []Node
 }
 
-func (this *ListNode) String() string {
-	return "RecipeList"
+func (this *ListNode) Name() string {
+	return "list"
 }
 
 func (this *ListNode) WriteHash(hash hash.Hash) {
@@ -24,4 +24,8 @@ func (this *ListNode) WriteHash(hash hash.Hash) {
 
 func (this *ListNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *ListNode) GetChildren() []Node {
+	return this.Items
 }

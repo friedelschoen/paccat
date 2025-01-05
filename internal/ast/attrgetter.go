@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"fmt"
 	"hash"
 
 	"friedelschoen.io/paccat/internal/errors"
@@ -10,19 +9,23 @@ import (
 type GetterNode struct {
 	Pos       errors.Position
 	Target    Node
-	Attribute string
+	Attribute *LiteralNode
 }
 
-func (this *GetterNode) String() string {
-	return fmt.Sprintf("RecipeGetter#%s{%v}", this.Attribute, this.Target)
+func (this *GetterNode) Name() string {
+	return "getter"
 }
 
 func (this *GetterNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("getter"))
 	this.Target.WriteHash(hash)
-	hash.Write([]byte(this.Attribute))
+	this.Attribute.WriteHash(hash)
 }
 
 func (this *GetterNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *GetterNode) GetChildren() []Node {
+	return []Node{this.Target, this.Attribute}
 }

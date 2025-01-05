@@ -68,12 +68,19 @@ func (this *parseState) expectTokenContent(content string) (Token, *parseError) 
 	return Token{}, &parseError{this.lex.Token, []string{"`" + content + "`"}}
 }
 
+func (this *parseState) asLiteral(tok Token) *ast.LiteralNode {
+	return &ast.LiteralNode{
+		Pos:     this.newPos(tok, tok),
+		Content: tok.Content,
+	}
+}
+
 func (this *parseState) parseLambda() (ast.Node, *parseError) {
 	begin, err := this.expectTokenContent("(")
 	if err != nil {
 		return nil, err
 	}
-	args := map[string]ast.Node{}
+	args := ast.LiteralMap{}
 tokenLoop:
 	for this.lex.Valid {
 		if len(args) > 0 {
@@ -94,7 +101,10 @@ tokenLoop:
 				return nil, err
 			}
 		}
-		args[ident.Content] = def
+		args[ident.Content] = ast.LiteralMapPair{
+			Key:   this.asLiteral(ident),
+			Value: def,
+		}
 	}
 
 	end, err := this.expectTokenContent(")")
@@ -124,7 +134,7 @@ func (this *parseState) parseDict() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	items := map[string]ast.Node{}
+	items := ast.LiteralMap{}
 tokenLoop:
 	for this.lex.Valid {
 		if len(items) > 0 {
@@ -145,7 +155,10 @@ tokenLoop:
 		if err != nil {
 			return nil, err
 		}
-		items[ident.Content] = value
+		items[ident.Content] = ast.LiteralMapPair{
+			Key:   this.asLiteral(ident),
+			Value: value,
+		}
 	}
 
 	end, err := this.expectTokenContent("}")
@@ -218,8 +231,8 @@ func (this *parseState) parseReference() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.ReferenceNode{
-		Pos:  this.newPos(begin, ident),
-		Name: ident.Content,
+		Pos:      this.newPos(begin, ident),
+		Variable: this.asLiteral(ident),
 	}, nil
 }
 
@@ -400,11 +413,11 @@ tokenLoop:
 			val = &ast.GetterNode{
 				Pos:       this.newPos(begin, ident),
 				Target:    val,
-				Attribute: ident.Content,
+				Attribute: this.asLiteral(ident),
 			}
 		case "(":
 			this.lex.Next()
-			args := map[string]ast.Node{}
+			args := ast.LiteralMap{}
 		argLoop:
 			for this.lex.Valid {
 				if len(args) > 0 {
@@ -425,7 +438,10 @@ tokenLoop:
 				if err != nil {
 					return nil, err
 				}
-				args[ident.Content] = value
+				args[ident.Content] = ast.LiteralMapPair{
+					Key:   this.asLiteral(ident),
+					Value: value,
+				}
 			}
 			end, err := this.expectTokenContent(")")
 			if err != nil {

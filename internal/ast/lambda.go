@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"fmt"
 	"hash"
 
 	"friedelschoen.io/paccat/internal/errors"
@@ -10,24 +9,24 @@ import (
 type LambdaNode struct {
 	Pos    errors.Position
 	Target Node
-	Args   map[string]Node
+	Args   LiteralMap
 }
 
-func (this *LambdaNode) String() string {
-	return fmt.Sprintf("RecipeLambda#{%v}{%v}", this.Args, this.Target)
+func (this *LambdaNode) Name() string {
+	return "lambda"
 }
 
 func (this *LambdaNode) WriteHash(hash hash.Hash) {
 	hash.Write([]byte("lambda"))
 	this.Target.WriteHash(hash)
-	for key, value := range this.Args {
-		hash.Write([]byte(key))
-		if value != nil {
-			value.WriteHash(hash)
-		}
-	}
+	this.Args.WriteHash(hash)
 }
 
 func (this *LambdaNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *LambdaNode) GetChildren() []Node {
+	return []Node{this.Target, this.Args}
+
 }

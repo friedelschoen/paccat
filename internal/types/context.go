@@ -42,8 +42,8 @@ func GetExports(ctx Context, this *ast.OutputNode) (map[string][]string, error) 
 		}
 		switch value := anyValue.(type) {
 		case *DictValue:
-			for key, attr := range value.Items {
-				attrValue, err := ctx.Evaluate(attr)
+			for key, pair := range value.Items {
+				attrValue, err := ctx.Evaluate(pair.Value)
 				if err != nil {
 					return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
 				}
@@ -124,7 +124,7 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 	case *ast.GetterNode:
 		anyValue, err := ctx.Evaluate(this.Target)
 		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute))
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
 		}
 
 		dict, ok := anyValue.(DictLike)
@@ -132,9 +132,9 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 			return nil, errors.NewRecipeError(anyValue.GetSource().GetPosition(), fmt.Sprintf("cannot cast %s to dict", anyValue.GetName()))
 		}
 
-		res, err := dict.GetAttrbute(this.Attribute, ctx)
+		res, err := dict.GetAttrbute(this.Attribute.Content, ctx)
 		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute))
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
 		}
 		return res, nil
 	case *ast.CallNode:
@@ -150,9 +150,9 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 		newctx := ctx.Copy()
 		for key, def := range lambda.Args {
 			if val, ok := this.Args[key]; ok {
-				newctx.scope[key] = val
-			} else if def != nil {
-				newctx.scope[key] = def
+				newctx.scope[key] = val.Value
+			} else if val.Value != nil {
+				newctx.scope[key] = def.Value
 			} else {
 				return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("lambda called without parameter `%s`", key))
 			}
@@ -202,7 +202,7 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 	case *ast.OutputNode:
 		newctx := ctx.Copy()
 		for key, value := range this.Options {
-			newctx.scope[key] = value
+			newctx.scope[key] = value.Value
 		}
 
 		sum := this.ScriptSum()
@@ -282,15 +282,15 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 
 		return nil, errors.NewRecipeError(this.GetPosition(), strValue.Content)
 	case *ast.ReferenceNode:
-		value, ok := ctx.scope[this.Name]
+		value, ok := ctx.scope[this.Variable.Content]
 		if !ok {
 			if len(ctx.scope) > 0 {
-				similar, dist := findSimilar(this.Name, maps.Keys(ctx.scope))
+				similar, dist := findSimilar(this.Variable.Content, maps.Keys(ctx.scope))
 				if dist <= SimilarDistance {
-					return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Name, similar))
+					return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
 				}
 			}
-			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope", this.Name))
+			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope", this.Variable.Content))
 		}
 		eval, err := ctx.Evaluate(value)
 		if err != nil {

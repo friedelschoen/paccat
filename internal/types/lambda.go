@@ -1,6 +1,8 @@
 package types
 
 import (
+	"io"
+
 	"friedelschoen.io/paccat/internal/ast"
 	"friedelschoen.io/paccat/internal/errors"
 )
@@ -17,4 +19,8 @@ func (this *LambdaValue) GetSource() ast.Node {
 
 func (this *LambdaValue) GetName() string {
 	return "lambda"
+}
+
+func (this *LambdaValue) ToJSON(Context, io.Writer) error {
+	return errors.NewRecipeError(this.GetSource().GetPosition(), "lambda is not representable in JSON")
 }

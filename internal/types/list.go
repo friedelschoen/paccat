@@ -1,6 +1,7 @@
 package types
 
 import (
+	"io"
 	"strings"
 
 	"friedelschoen.io/paccat/internal/ast"
@@ -33,4 +34,21 @@ func (this *ListValue) ToString(ctx Context) (*StringValue, error) {
 		builder.WriteString(strValue.Content)
 	}
 	return &StringValue{this.GetSource(), builder.String(), sources}, nil
+}
+
+func (this *ListValue) ToJSON(ctx Context, w io.Writer) error {
+	w.Write([]byte{'{'})
+	for i, node := range this.Items {
+		if i > 0 {
+			w.Write([]byte{','})
+		}
+		value, err := ctx.Evaluate(node)
+		if err != nil {
+			return err
+		}
+		value.ToJSON(ctx, w)
+	}
+	w.Write([]byte{'}'})
+
+	return nil
 }

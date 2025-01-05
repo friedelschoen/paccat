@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"friedelschoen.io/paccat/internal/ast"
 	"friedelschoen.io/paccat/internal/errors"
 	"friedelschoen.io/paccat/internal/parser"
 	"friedelschoen.io/paccat/internal/types"
@@ -43,6 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	ast.PrintTree(os.Stdout, eval, 0)
+
 	ctx := types.NewContext(filename)
 	value, err := ctx.Evaluate(eval)
 	if err != nil {
@@ -50,11 +53,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	strValue, err := types.CastString(value, ctx)
-	if err != nil {
-		errors.PrintTrace(os.Stdout, err)
-		os.Exit(1)
-	}
-
-	fmt.Println(strValue.Content)
+	value.ToJSON(ctx, os.Stdout)
+	fmt.Println()
 }

@@ -5,8 +5,11 @@ output {
 
     repo = output {
         name = "fetch-textselect",
-        script = "git clone https://github.com/friedelschoen/textselect.git {{ $out }}"
-    },
+        script = ''
+            git clone https://github.com/friedelschoen/textselect.git {{ $out }}
+            rm -rf {{ $out }}/.git
+        ''
+     },
 
     script = ''
         cd {{ $repo }}

@@ -11,8 +11,8 @@ type ImportNode struct {
 	Source Node
 }
 
-func (this *ImportNode) String() string {
-	return "RecipeImport"
+func (this *ImportNode) Name() string {
+	return "import"
 }
 
 func (this *ImportNode) WriteHash(hash hash.Hash) {
@@ -22,4 +22,8 @@ func (this *ImportNode) WriteHash(hash hash.Hash) {
 
 func (this *ImportNode) GetPosition() errors.Position {
 	return this.Pos
+}
+
+func (this *ImportNode) GetChildren() []Node {
+	return []Node{this.Source}
 }

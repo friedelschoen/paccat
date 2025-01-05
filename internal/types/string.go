@@ -1,6 +1,9 @@
 package types
 
 import (
+	"fmt"
+	"io"
+
 	"friedelschoen.io/paccat/internal/ast"
 )
 
@@ -29,4 +32,10 @@ func (this *StringValue) ValueAt(pos int) *StringValue {
 		}
 	}
 	return this
+}
+
+func (this *StringValue) ToJSON(ctx Context, w io.Writer) error {
+	fmt.Fprintf(w, "\"%s\"", this.Content)
+
+	return nil
 }
