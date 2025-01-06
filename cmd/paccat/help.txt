@@ -1,0 +1,16 @@
+usage: paccat-eval [options] <filename>
+
+options:
+  -t --ast ....... print abstract-syntax-tree
+  -h --help ...... print this and exit
+  -j --json ...... print json
+     --result .... symlink result to ./result
+                  ,
+    _ |\_____/| _ (( ____
+   /  | @   @ |    ))  /||
+  /  ~~~  Y  ~~~  ((  / ||
+ ,-------------------,  |
+ |                  ||  |
+ |__________________||  |
+  |                  | /
+  |__________________|/
