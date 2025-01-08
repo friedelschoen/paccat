@@ -2,8 +2,6 @@ package types
 
 import (
 	"fmt"
-	"iter"
-	"maps"
 	"math"
 	"os"
 	"os/exec"
@@ -18,7 +16,7 @@ import (
 )
 
 const (
-	SimilarDistance = 10
+	MaxSimilarityDistance = 10
 )
 
 type Context struct {
@@ -33,54 +31,10 @@ func NewContext(filename string) Context {
 	}
 }
 
-func GetExports(ctx Context, this *ast.OutputNode) (map[string][]string, error) {
-	exports := map[string][]string{}
-	if exportVal, ok := ctx.scope["exports"]; ok {
-		anyValue, err := ctx.Evaluate(exportVal)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-		}
-		switch value := anyValue.(type) {
-		case *DictValue:
-			for key, pair := range value.Items {
-				attrValue, err := ctx.Evaluate(pair.Value)
-				if err != nil {
-					return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-				}
-				if listval, ok := attrValue.(*ListValue); ok {
-					vars := make([]string, len(listval.Items))
-					for i, item := range listval.Items {
-						itemValue, err := ctx.Evaluate(item)
-						if err != nil {
-							return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-						}
-						strval, err := CastString(itemValue, ctx)
-						if err != nil {
-							return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-						}
-						vars[i] = strval.Content
-					}
-					exports[key] = vars
-				} else {
-					strval, err := CastString(attrValue, ctx)
-					if err != nil {
-						return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-					}
-					exports[key] = strings.Split(strval.Content, ":")
-				}
-			}
-
-		default:
-			return nil, errors.NewRecipeError(this.GetPosition(), "option `exports` is not a list or dict")
-		}
-	}
-	return exports, nil
-}
-
-func findSimilar(name string, vars iter.Seq[string]) (string, int) {
+func (this *Context) findSimilar(name string) (string, int) {
 	lowest := ""
 	lowestDist := math.MaxInt
-	for current := range vars {
+	for current := range this.scope {
 		if dist := levenshtein.ComputeDistance(name, current); dist < lowestDist {
 			lowest = current
 			lowestDist = dist
@@ -119,115 +73,120 @@ func (this *Context) Hash(name string) bool {
 	return ok
 }
 
-func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
-	switch this := anyNode.(type) {
+func (ctx *Context) Unwrap(currentNode ast.Node) (ast.Node, *Context, error) {
+	for {
+		switch this := currentNode.(type) {
+		case *ast.ImportNode:
+			filename, err := ctx.Evaluate(this.Source)
+			if err != nil {
+				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
+			}
+
+			pathname := path.Join(ctx.workdir, filename.Content)
+			currentNode, err = parser.ParseFile(pathname)
+			if err != nil {
+				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
+			}
+			ctx = &Context{
+				workdir: path.Dir(pathname),
+				scope:   map[string]ast.Node{},
+			}
+		case *ast.CallNode:
+			target, ctx, err := ctx.Unwrap(this.Target)
+			if err != nil {
+				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "unable to call "+this.Target.Name())
+			}
+			lambda, ok := target.(*ast.LambdaNode)
+			if !ok {
+				return nil, nil, errors.NewRecipeError(this.GetPosition(), "unable to call "+this.Target.Name())
+			}
+
+			for key, def := range lambda.Args {
+				if val, ok := this.Args[key]; ok {
+					ctx.scope[key] = val.Value
+				} else if val.Value != nil {
+					ctx.scope[key] = def.Value
+				} else {
+					return nil, nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("lambda called without parameter `%s`", key))
+				}
+			}
+		default:
+			return currentNode, ctx, nil
+		}
+	}
+}
+
+func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
+	currentNode, ctx, err := ctx.Unwrap(currentNode)
+	if err != nil {
+		return nil, err
+	}
+	switch this := currentNode.(type) {
 	case *ast.GetterNode:
-		anyValue, err := ctx.Evaluate(this.Target)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
-		}
-
-		dict, ok := anyValue.(DictLike)
-		if !ok {
-			return nil, errors.NewRecipeError(anyValue.GetSource().GetPosition(), fmt.Sprintf("cannot cast %s to dict", anyValue.GetName()))
-		}
-
-		res, err := dict.GetAttrbute(this.Attribute.Content, ctx)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
-		}
-		return res, nil
-	case *ast.CallNode:
 		value, err := ctx.Evaluate(this.Target)
 		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while trying to call value")
-		}
-		lambda, err := CastValue[*LambdaValue](value)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while trying to call value")
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
 		}
 
-		newctx := ctx.Copy()
-		for key, def := range lambda.Args {
-			if val, ok := this.Args[key]; ok {
-				newctx.scope[key] = val.Value
-			} else if val.Value != nil {
-				newctx.scope[key] = def.Value
-			} else {
-				return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("lambda called without parameter `%s`", key))
-			}
+		res, ok := value.Attributes[this.Attribute.Content]
+		if !ok {
+			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
 		}
-
-		res, err := newctx.Evaluate(lambda.Target)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while trying to call value")
-		}
-		return res, nil
+		return res.Value, nil
 	case *ast.DictNode:
-		return (*DictValue)(this), nil
-	case *ast.ImportNode:
-		filenameVal, err := ctx.Evaluate(this.Source)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
+		values := map[string]ValuePair{}
+		for key, itempair := range this.Items {
+			pair := ValuePair{}
+			pair.Key, err = ctx.Evaluate(itempair.Key)
+			if err != nil {
+				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluting dict")
+			}
+			pair.Value, err = ctx.Evaluate(itempair.Value)
+			if err != nil {
+				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluting dict")
+			}
+			values[key] = pair
 		}
-		filename, err := CastString(filenameVal, ctx)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
-		}
-
-		pathname := path.Join(ctx.workdir, filename.Content)
-		recipe, err := parser.ParseFile(pathname)
-		if err != nil {
-			return nil, err
-		}
-
-		newctx := Context{
-			workdir: path.Dir(pathname),
-		}
-		value, err := newctx.Evaluate(recipe)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
-		}
-		return value, nil
-	case *ast.LambdaNode:
-		return (*LambdaValue)(this), nil
+		return &StringValue{
+			Node:       this,
+			Attributes: values,
+		}, nil
 	case *ast.ListNode:
-		return (*ListValue)(this), nil
+		builder := ValueBuilder{}
+		for i, item := range this.Items {
+			if i > 0 {
+				builder.WriteByte(' ')
+			}
+			anyValue, err := ctx.Evaluate(item)
+			if err != nil {
+				return nil, errors.WrapRecipeError(err, this.Pos, "while evaluating list")
+			}
+			builder.WriteValue(anyValue)
+		}
+		return builder.Value(this), nil
 	case *ast.LiteralNode:
 		return &StringValue{
-			source:       this,
-			Content:      this.Content,
-			StringSource: []StringSource{},
+			Node:    this,
+			Content: this.Content,
 		}, nil
 	case *ast.OutputNode:
-		newctx := ctx.Copy()
 		for key, value := range this.Options {
-			newctx.scope[key] = value.Value
+			ctx.scope[key] = value.Value
 		}
 
 		sum := this.ScriptSum()
 		outpath := path.Join(util.GetCachedir(), sum)
 
-		exports, err := GetExports(newctx, this)
-		if err != nil {
-			return nil, err
-		}
-
 		if _, err := os.Stat(outpath); err == nil {
-			if alwaysEval, ok := newctx.scope["always"]; ok {
-				alwaysVal, err := newctx.Evaluate(alwaysEval)
+			if alwaysEval, ok := ctx.scope["always"]; ok {
+				alwaysVal, err := ctx.Evaluate(alwaysEval)
 				if err != nil {
 					return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
 				}
-				always, err := CastBoolean(alwaysVal, newctx)
-				if err != nil {
-					return nil, errors.WrapRecipeError(err, alwaysEval.GetPosition(), "while evaluating output")
-				}
-				if always {
-					return &OutputValue{
-						Source:  this,
-						Exports: exports,
-						Path:    outpath,
+				if len(alwaysVal.Content) > 0 {
+					return &StringValue{
+						Node:    this,
+						Content: outpath,
 					}, nil
 				}
 			}
@@ -242,21 +201,17 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 		}
 		defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
-		newctx.Set("out", outpath)
-		defer newctx.Unset("out")
+		ctx.Set("out", outpath)
+		defer ctx.Unset("out")
 
-		if scriptEval, ok := newctx.scope["script"]; ok {
-			scriptValue, err := newctx.Evaluate(scriptEval)
-			if err != nil {
-				return nil, errors.WrapRecipeError(err, scriptEval.GetPosition(), "while evaluating output")
-			}
-			script, err := CastString(scriptValue, newctx)
+		if scriptEval, ok := ctx.scope["script"]; ok {
+			scriptValue, err := ctx.Evaluate(scriptEval)
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, scriptEval.GetPosition(), "while evaluating output")
 			}
 
 			cmd := exec.Command("sh")
-			cmd.Stdin = strings.NewReader(script.Content)
+			cmd.Stdin = strings.NewReader(scriptValue.Content)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Dir = workdir
@@ -265,28 +220,23 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 			}
 		}
 
-		return &OutputValue{
-			Source:  this,
-			Path:    outpath,
-			Exports: exports,
+		return &StringValue{
+			Node:    this,
+			Content: outpath,
 		}, nil
 	case *ast.PanicNode:
 		value, err := ctx.Evaluate(this.Message)
 		if err != nil {
 			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating panic")
 		}
-		strValue, err := CastString(value, ctx)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating panic")
-		}
 
-		return nil, errors.NewRecipeError(this.GetPosition(), strValue.Content)
+		return nil, errors.NewRecipeError(this.GetPosition(), value.Content)
 	case *ast.ReferenceNode:
 		value, ok := ctx.scope[this.Variable.Content]
 		if !ok {
 			if len(ctx.scope) > 0 {
-				similar, dist := findSimilar(this.Variable.Content, maps.Keys(ctx.scope))
-				if dist <= SimilarDistance {
+				similar, dist := ctx.findSimilar(this.Variable.Content)
+				if dist <= MaxSimilarityDistance {
 					return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
 				}
 			}
@@ -298,21 +248,16 @@ func (ctx Context) Evaluate(anyNode ast.Node) (Value, error) {
 		}
 		return eval, nil
 	case *ast.StringNode:
-		builder := strings.Builder{}
-		sources := []StringSource{}
+		builder := ValueBuilder{}
 		for _, content := range this.Content {
 			value, err := ctx.Evaluate(content)
 			if err != nil {
 				return nil, err
 			}
-			strValue, err := CastString(value, ctx)
-			if err != nil {
-				return nil, err
-			}
-			sources = append(sources, StringSource{builder.Len(), len(strValue.Content), strValue})
-			builder.WriteString(strValue.Content)
+			builder.WriteValue(value)
 		}
-		return &StringValue{this, builder.String(), sources}, nil
+		return builder.Value(this), nil
+	default:
+		return nil, errors.NewRecipeError(currentNode.GetPosition(), currentNode.Name()+" is not evaluable")
 	}
-	return nil, nil
 }

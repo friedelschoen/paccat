@@ -40,7 +40,6 @@ func makeSymlink(result string) error {
 }
 
 func main() {
-	printjson := false
 	printast := false
 	makeresult := false
 	i := 0
@@ -52,8 +51,6 @@ argloop:
 			os.Exit(0)
 		case "--ast", "-t":
 			printast = true
-		case "--json", "-j":
-			printjson = true
 		case "--result":
 			makeresult = true
 		default:
@@ -87,27 +84,12 @@ argloop:
 		os.Exit(1)
 	}
 
-	if printjson {
-		value.ToJSON(ctx, os.Stdout)
-		fmt.Println()
-	}
+	fmt.Println(value.Content)
 
-	if !printjson || makeresult {
-		strval, ok := value.(types.StringLike)
-		if !ok {
-			fmt.Fprint(os.Stderr, "error: expression is not a string")
-			os.Exit(1)
-		}
-		str, err := strval.ToString(ctx)
-		if err != nil {
-			errors.PrintTrace(os.Stdout, err)
-			os.Exit(1)
-		}
-		if !printjson {
-			fmt.Println(str.Content)
-		}
+	if makeresult {
+		fmt.Println(value.Content)
 		if makeresult {
-			path := str.Content
+			path := value.Content
 			if _, err := os.Lstat(path); err != nil {
 				fmt.Fprintf(os.Stderr, "error: unable to stat result: %v\n", err)
 				os.Exit(1)
