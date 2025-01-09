@@ -2,6 +2,7 @@ usage: paccat-eval [options] <filename>
 
 options:
   -t --ast ....... print abstract-syntax-tree
+  -s --source .... print string-sources
   -h --help ...... print this and exit
      --result .... symlink result to ./result
                   ,

@@ -41,6 +41,7 @@ func makeSymlink(result string) error {
 
 func main() {
 	printast := false
+	printsource := false
 	makeresult := false
 	i := 0
 argloop:
@@ -51,6 +52,8 @@ argloop:
 			os.Exit(0)
 		case "--ast", "-t":
 			printast = true
+		case "--source", "-s":
+			printsource = true
 		case "--result":
 			makeresult = true
 		default:
@@ -85,6 +88,12 @@ argloop:
 	}
 
 	fmt.Println(value.Content)
+
+	if printsource {
+		for _, ss := range value.FlatSources() {
+			fmt.Printf("%d-%d: %s\n", ss.Start, ss.Start+ss.Len, ss.Value.Node.Name())
+		}
+	}
 
 	if makeresult {
 		fmt.Println(value.Content)
