@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"hash"
-
 	"friedelschoen.io/paccat/internal/errors"
 )
 
@@ -14,12 +12,6 @@ type CallNode struct {
 
 func (this *CallNode) Name() string {
 	return "call"
-}
-
-func (this *CallNode) WriteHash(hash hash.Hash) {
-	hash.Write([]byte("call"))
-	this.Target.WriteHash(hash)
-	this.Args.WriteHash(hash)
 }
 
 func (this *CallNode) GetPosition() errors.Position {

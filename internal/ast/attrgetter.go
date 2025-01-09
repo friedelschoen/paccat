@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"hash"
-
 	"friedelschoen.io/paccat/internal/errors"
 )
 
@@ -14,12 +12,6 @@ type GetterNode struct {
 
 func (this *GetterNode) Name() string {
 	return "getter"
-}
-
-func (this *GetterNode) WriteHash(hash hash.Hash) {
-	hash.Write([]byte("getter"))
-	this.Target.WriteHash(hash)
-	this.Attribute.WriteHash(hash)
 }
 
 func (this *GetterNode) GetPosition() errors.Position {

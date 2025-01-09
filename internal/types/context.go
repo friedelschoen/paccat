@@ -174,7 +174,7 @@ func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			ctx.scope[key] = value.Value
 		}
 
-		sum := this.ScriptSum()
+		sum := ast.NodeHash(this)
 		outpath := path.Join(util.GetCachedir(), sum)
 
 		if _, err := os.Stat(outpath); err == nil {

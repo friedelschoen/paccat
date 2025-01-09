@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"hash"
 	"math"
 
 	"friedelschoen.io/paccat/internal/errors"
@@ -14,11 +13,6 @@ type LiteralNode struct {
 
 func (this *LiteralNode) Name() string {
 	return "literal-" + this.Content
-}
-
-func (this *LiteralNode) WriteHash(hash hash.Hash) {
-	hash.Write([]byte("literal"))
-	hash.Write([]byte(this.Content))
 }
 
 func (this *LiteralNode) GetPosition() errors.Position {
@@ -38,10 +32,6 @@ type LiteralMapPair struct {
 
 func (this LiteralMap) Name() string {
 	return "literalmap"
-}
-
-func (this LiteralMap) WriteHash(hash hash.Hash) {
-	hash.Write([]byte("literalmap"))
 }
 
 func (this LiteralMap) GetPosition() errors.Position {

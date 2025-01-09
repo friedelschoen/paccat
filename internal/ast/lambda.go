@@ -1,8 +1,6 @@
 package ast
 
 import (
-	"hash"
-
 	"friedelschoen.io/paccat/internal/errors"
 )
 
@@ -14,12 +12,6 @@ type LambdaNode struct {
 
 func (this *LambdaNode) Name() string {
 	return "lambda"
-}
-
-func (this *LambdaNode) WriteHash(hash hash.Hash) {
-	hash.Write([]byte("lambda"))
-	this.Target.WriteHash(hash)
-	this.Args.WriteHash(hash)
 }
 
 func (this *LambdaNode) GetPosition() errors.Position {

@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"hash"
 	"hash/crc64"
 	"io"
 	"unicode"
@@ -10,21 +9,23 @@ import (
 	"friedelschoen.io/paccat/internal/errors"
 )
 
-type Positioned interface {
-	GetPosition() errors.Position
-}
-
 type Node interface {
-	Positioned
+	GetPosition() errors.Position
 	Name() string
 	GetChildren() []Node
-	WriteHash(hash.Hash)
+}
+
+func writeHash(in Node, w io.Writer) {
+	for _, child := range in.GetChildren() {
+		w.Write([]byte(child.Name()))
+		writeHash(child, w)
+	}
 }
 
 func NodeHash(in Node) string {
 	table := crc64.MakeTable(crc64.ISO)
 	hash := crc64.New(table)
-	in.WriteHash(hash)
+	writeHash(in, hash)
 	return fmt.Sprintf("%016x", hash.Sum64())
 }
 
