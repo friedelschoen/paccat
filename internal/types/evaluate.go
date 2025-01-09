@@ -16,64 +16,58 @@ import (
 )
 
 const (
-	MaxSimilarityDistance = 10
+	MaxSimilarityDistance = 3
 )
 
-type Context struct {
-	workdir string              // directory of the recipe
-	scope   map[string]ast.Node // variables and attributes
+type Variable struct {
+	name string
+	node ast.Node
 }
 
-func NewContext(filename string) Context {
-	return Context{
-		workdir: path.Dir(filename),
-		scope:   map[string]ast.Node{},
-	}
-}
+type Scope []Variable
 
-func (this *Context) findSimilar(name string) (string, int) {
+func (this Scope) findSimilar(name string) (string, int) {
 	lowest := ""
 	lowestDist := math.MaxInt
-	for current := range this.scope {
-		if dist := levenshtein.ComputeDistance(name, current); dist < lowestDist {
-			lowest = current
+	for _, current := range this {
+		if dist := levenshtein.ComputeDistance(name, current.name); dist < lowestDist {
+			lowest = current.name
 			lowestDist = dist
 		}
 	}
 	return lowest, lowestDist
 }
 
-func (this *Context) Copy() Context {
-	newctx := Context{
-		workdir: this.workdir,
-		scope:   map[string]ast.Node{},
+func (ctx Scope) Get(name string) ast.Node {
+	for _, variable := range ctx {
+		if variable.name == name {
+			return variable.node
+		}
 	}
+	return nil
+}
 
-	for key, value := range this.scope {
-		newctx.scope[key] = value
+func (ctx Scope) Set(name string, value ast.Node) Scope {
+	newctx := make([]Variable, 0, len(ctx))
+	for _, variable := range ctx {
+		if variable.name != name {
+			newctx = append(newctx, variable)
+		}
 	}
-
+	if value != nil {
+		newctx = append(newctx, Variable{name, value})
+	}
 	return newctx
 }
 
-func (this *Context) Set(key, value string) {
-	literal := fmt.Sprintf("\"%s\"", value)
-	this.scope[key] = &ast.LiteralNode{
-		Pos:     errors.Position{Filename: "<eval>", Content: &literal, Start: 0, End: len(literal)},
-		Content: value,
-	}
+func (ctx Scope) SetLiteral(name string, content string) Scope {
+	return ctx.Set(name, &ast.LiteralNode{
+		Pos:     errors.Position{Filename: "<eval>", Content: &content, Start: 0, End: len(content)},
+		Content: content,
+	})
 }
 
-func (this *Context) Unset(key string) {
-	delete(this.scope, key)
-}
-
-func (this *Context) Hash(name string) bool {
-	_, ok := this.scope[name]
-	return ok
-}
-
-func (ctx *Context) Unwrap(currentNode ast.Node) (ast.Node, *Context, error) {
+func (ctx Scope) Unwrap(currentNode ast.Node) (ast.Node, Scope, error) {
 	for {
 		switch this := currentNode.(type) {
 		case *ast.ImportNode:
@@ -82,15 +76,13 @@ func (ctx *Context) Unwrap(currentNode ast.Node) (ast.Node, *Context, error) {
 				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
 			}
 
-			pathname := path.Join(ctx.workdir, filename.Content)
+			workdir := path.Dir(this.Pos.Filename)
+			pathname := path.Join(workdir, filename.Content)
 			currentNode, err = parser.ParseFile(pathname)
 			if err != nil {
 				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
 			}
-			ctx = &Context{
-				workdir: path.Dir(pathname),
-				scope:   map[string]ast.Node{},
-			}
+			ctx = []Variable{}
 		case *ast.CallNode:
 			target, ctx, err := ctx.Unwrap(this.Target)
 			if err != nil {
@@ -103,9 +95,9 @@ func (ctx *Context) Unwrap(currentNode ast.Node) (ast.Node, *Context, error) {
 
 			for key, def := range lambda.Args {
 				if val, ok := this.Args[key]; ok {
-					ctx.scope[key] = val.Value
+					ctx = ctx.Set(key, val.Value)
 				} else if val.Value != nil {
-					ctx.scope[key] = def.Value
+					ctx = ctx.Set(key, def.Value)
 				} else {
 					return nil, nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("lambda called without parameter `%s`", key))
 				}
@@ -116,7 +108,7 @@ func (ctx *Context) Unwrap(currentNode ast.Node) (ast.Node, *Context, error) {
 	}
 }
 
-func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
+func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 	currentNode, ctx, err := ctx.Unwrap(currentNode)
 	if err != nil {
 		return nil, err
@@ -171,14 +163,14 @@ func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}, nil
 	case *ast.OutputNode:
 		for key, value := range this.Options {
-			ctx.scope[key] = value.Value
+			ctx = ctx.Set(key, value.Value)
 		}
 
 		sum := ast.NodeHash(this)
 		outpath := path.Join(util.GetCachedir(), sum)
 
 		if _, err := os.Stat(outpath); err == nil {
-			if alwaysEval, ok := ctx.scope["always"]; ok {
+			if alwaysEval := ctx.Get("always"); alwaysEval != nil {
 				alwaysVal, err := ctx.Evaluate(alwaysEval)
 				if err != nil {
 					return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
@@ -201,10 +193,9 @@ func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}
 		defer os.RemoveAll(workdir) /* do remove the workdir if not needed */
 
-		ctx.Set("out", outpath)
-		defer ctx.Unset("out")
+		ctx = ctx.SetLiteral("out", outpath)
 
-		if scriptEval, ok := ctx.scope["script"]; ok {
+		if scriptEval := ctx.Get("script"); scriptEval != nil {
 			scriptValue, err := ctx.Evaluate(scriptEval)
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, scriptEval.GetPosition(), "while evaluating output")
@@ -232,19 +223,17 @@ func (ctx *Context) Evaluate(currentNode ast.Node) (*StringValue, error) {
 
 		return nil, errors.NewRecipeError(this.GetPosition(), value.Content)
 	case *ast.ReferenceNode:
-		value, ok := ctx.scope[this.Variable.Content]
-		if !ok {
-			if len(ctx.scope) > 0 {
-				similar, dist := ctx.findSimilar(this.Variable.Content)
-				if dist <= MaxSimilarityDistance {
-					return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
-				}
+		value := ctx.Get(this.Variable.Content)
+		if value == nil {
+			similar, dist := ctx.findSimilar(this.Variable.Content)
+			if dist <= MaxSimilarityDistance {
+				return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
 			}
 			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope", this.Variable.Content))
 		}
 		eval, err := ctx.Evaluate(value)
 		if err != nil {
-			errors.WrapRecipeError(err, this.GetPosition(), "refered here")
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), "refered here")
 		}
 		return eval, nil
 	case *ast.StringNode:

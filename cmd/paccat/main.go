@@ -77,7 +77,7 @@ argloop:
 		ast.PrintTree(os.Stdout, eval, 0)
 	}
 
-	ctx := types.NewContext(filename)
+	ctx := types.Scope{}
 	value, err := ctx.Evaluate(eval)
 	if err != nil {
 		errors.PrintTrace(os.Stdout, err)
