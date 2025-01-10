@@ -11,9 +11,13 @@ type ValueBuilder struct {
 	sources []StringSource
 }
 
-func (this *ValueBuilder) WriteValue(val *StringValue) {
-	this.sources = append(this.sources, StringSource{Start: this.Len(), Len: len(val.Content), Value: val})
-	this.WriteString(val.Content)
+func (this *ValueBuilder) WriteValue(val *StringValue, quote bool) {
+	content := val.Content
+	if quote && strings.ContainsRune(content, ' ') {
+		content = "\"" + strings.ReplaceAll(content, "\"", "\"\"") + "\""
+	}
+	this.sources = append(this.sources, StringSource{Start: this.Len(), Len: len(content), Value: val})
+	this.WriteString(content)
 }
 
 func (this *ValueBuilder) Value(source ast.Node) *StringValue {

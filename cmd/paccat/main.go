@@ -42,6 +42,7 @@ func makeSymlink(result string) error {
 func main() {
 	printast := false
 	printsource := false
+	printhash := false
 	makeresult := false
 	i := 0
 argloop:
@@ -52,6 +53,8 @@ argloop:
 			os.Exit(0)
 		case "--ast", "-t":
 			printast = true
+		case "--hash", "-H":
+			printhash = true
 		case "--source", "-s":
 			printsource = true
 		case "--result":
@@ -76,8 +79,14 @@ argloop:
 		os.Exit(1)
 	}
 
+	if printhash {
+		fmt.Println(ast.NodeHash(eval))
+		os.Exit(0)
+	}
+
 	if printast {
 		ast.PrintTree(os.Stdout, eval, 0)
+		os.Exit(0)
 	}
 
 	ctx := types.Scope{}

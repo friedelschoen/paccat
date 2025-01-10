@@ -2,6 +2,7 @@ package ast
 
 import (
 	"math"
+	"slices"
 
 	"friedelschoen.io/paccat/internal/errors"
 )
@@ -39,9 +40,8 @@ func (this LiteralMap) GetPosition() errors.Position {
 	pos.Start = math.MaxInt
 	pos.End = 0
 	for _, pair := range this {
-		if pos.Content == nil {
-			pos.Filename = pair.Key.Pos.Filename
-			pos.Content = pair.Key.Pos.Content
+		if pos.File == nil {
+			pos.File = pair.Key.Pos.File
 		}
 		if pair.Key.Pos.Start < pos.Start {
 			pos.Start = pair.Key.Pos.Start
@@ -60,12 +60,20 @@ func (this LiteralMap) GetPosition() errors.Position {
 }
 
 func (this LiteralMap) GetChildren() []Node {
-	res := make([]Node, 2*len(this))
+	keys := make([]string, len(this))
 	i := 0
-	for _, pair := range this {
-		res[i] = pair.Key
+	for key := range this {
+		keys[i] = key
 		i++
-		res[i] = pair.Value
+	}
+	slices.Sort(keys)
+
+	res := make([]Node, 2*len(this))
+	i = 0
+	for _, key := range keys {
+		res[i] = this[key].Key
+		i++
+		res[i] = this[key].Value
 		i++
 	}
 	return res

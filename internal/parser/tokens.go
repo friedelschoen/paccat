@@ -18,7 +18,7 @@ func statePush(s state) stateFunc {
 
 var tokens = []tokenDefine{
 	{state: "root", name: "interp-end", stateChange: statePop(), skip: false, expr: regexp.MustCompile("^(}})")},
-	{state: "root", name: "path", stateChange: nil, skip: false, expr: regexp.MustCompile("^(\\.?/[a-zA-Z0-9._-]*)")},
+	{state: "root", name: "path", stateChange: nil, skip: false, expr: regexp.MustCompile("^(\\.{0,2}/[a-zA-Z0-9._-]*)")},
 	{state: "root", name: "arrow", stateChange: nil, skip: false, expr: regexp.MustCompile("^(->)")},
 	{state: "root", name: "symbol", stateChange: nil, skip: false, expr: regexp.MustCompile("^([(){}[\\].=,$\\\\;])")},
 	{state: "root", name: "multiline-begin", stateChange: statePush("multi"), skip: false, expr: regexp.MustCompile("^('')")},

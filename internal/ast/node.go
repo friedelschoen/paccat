@@ -16,8 +16,8 @@ type Node interface {
 }
 
 func writeHash(in Node, w io.Writer) {
+	w.Write([]byte(in.Name()))
 	for _, child := range in.GetChildren() {
-		w.Write([]byte(child.Name()))
 		writeHash(child, w)
 	}
 }
@@ -39,11 +39,12 @@ func PrintTree(w io.Writer, node Node, level int) {
 			name[i] = '-'
 		}
 	}
-	fmt.Fprintf(w, "%s at %d-%d: %s\n", string(name), pos.Start, pos.End, NodeHash(node))
+	fmt.Fprintf(w, "`%s` at %d-%d: %s\n", string(name), pos.Start, pos.End, NodeHash(node))
 
 	for _, child := range node.GetChildren() {
-		for ; level > 0; level-- {
+		for level > 0 {
 			w.Write(indent)
+			level--
 		}
 		w.Write([]byte("- "))
 		PrintTree(w, child, level+1)

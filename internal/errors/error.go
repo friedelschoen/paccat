@@ -6,11 +6,15 @@ import (
 	"strings"
 )
 
+type ErrorFile struct {
+	Filename string /* name of file */
+	Content  string /* content of file */
+}
+
 type Position struct {
-	Filename string  /* name of file */
-	Content  *string /* content of file */
-	Start    int     /* begin-character */
-	End      int     /* end of value */
+	File  *ErrorFile
+	Start int /* begin-character */
+	End   int /* end of value */
 }
 
 func (this Position) Len() int {
@@ -57,7 +61,7 @@ func PrintTrace(writer io.Writer, current error) {
 		line := 0
 		var startLine, startOffset int
 
-		lines := strings.SplitAfter(*err.pos.Content, "\n")
+		lines := strings.SplitAfter(err.pos.File.Content, "\n")
 		for _, lineStr := range lines {
 			line++
 			beginOffset := endOffset
@@ -74,19 +78,24 @@ func PrintTrace(writer io.Writer, current error) {
 
 			/* it's a oneliner */
 			if err.pos.Start >= beginOffset && err.pos.End < endOffset {
+				padding := 0
+				for strings.ContainsRune(" \t", rune(lineStr[0])) {
+					lineStr = lineStr[1:]
+					padding--
+				}
 				fmt.Fprintf(writer, "%3d | %s", line, lineStr)
 				if lineStr[len(lineStr)-1] != '\n' {
 					fmt.Fprintln(writer)
 				}
 				writer.Write([]byte("    | ")) // Padding to align under text
 
-				padding := err.pos.Start - beginOffset
-				length := err.pos.Len()
-
+				padding += err.pos.Start - beginOffset
 				for i := 0; i < padding; i++ {
 					writer.Write([]byte{' '})
 				}
 				writer.Write([]byte{'^'})
+
+				length := err.pos.Len()
 				for i := 0; i < length-1; i++ {
 					writer.Write([]byte{'-'})
 				}
@@ -104,7 +113,7 @@ func PrintTrace(writer io.Writer, current error) {
 		}
 
 		// Add the error message
-		fmt.Fprintf(writer, "%s:%d:%d: %s\n", err.pos.Filename, startLine, startOffset+1, err.message)
+		fmt.Fprintf(writer, "%s:%d:%d: %s\n", err.pos.File.Filename, startLine, startOffset+1, err.message)
 		current = err.previous
 	}
 }

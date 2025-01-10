@@ -62,7 +62,10 @@ func (ctx Scope) Set(name string, value ast.Node) Scope {
 
 func (ctx Scope) SetLiteral(name string, content string) Scope {
 	return ctx.Set(name, &ast.LiteralNode{
-		Pos:     errors.Position{Filename: "<eval>", Content: &content, Start: 0, End: len(content)},
+		Pos: errors.Position{
+			File:  &errors.ErrorFile{Filename: "<eval>", Content: content},
+			Start: 0,
+			End:   len(content)},
 		Content: content,
 	})
 }
@@ -76,7 +79,7 @@ func (ctx Scope) Unwrap(currentNode ast.Node) (ast.Node, Scope, error) {
 				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating import")
 			}
 
-			workdir := path.Dir(this.Pos.Filename)
+			workdir := path.Dir(this.Pos.File.Filename)
 			pathname := path.Join(workdir, filename.Content)
 			currentNode, err = parser.ParseFile(pathname)
 			if err != nil {
@@ -84,7 +87,9 @@ func (ctx Scope) Unwrap(currentNode ast.Node) (ast.Node, Scope, error) {
 			}
 			ctx = []Variable{}
 		case *ast.CallNode:
-			target, ctx, err := ctx.Unwrap(this.Target)
+			var target ast.Node
+			var err error
+			target, ctx, err = ctx.Unwrap(this.Target)
 			if err != nil {
 				return nil, nil, errors.WrapRecipeError(err, this.GetPosition(), "unable to call "+this.Target.Name())
 			}
@@ -96,16 +101,59 @@ func (ctx Scope) Unwrap(currentNode ast.Node) (ast.Node, Scope, error) {
 			for key, def := range lambda.Args {
 				if val, ok := this.Args[key]; ok {
 					ctx = ctx.Set(key, val.Value)
-				} else if val.Value != nil {
+				} else if def.Value != nil {
 					ctx = ctx.Set(key, def.Value)
 				} else {
 					return nil, nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("lambda called without parameter `%s`", key))
 				}
 			}
+			currentNode = lambda.Target
+		case *ast.ReferenceNode:
+			currentNode = ctx.Get(this.Variable.Content)
+			if currentNode == nil {
+				similar, dist := ctx.findSimilar(this.Variable.Content)
+				if dist <= MaxSimilarityDistance {
+					return nil, nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
+				}
+				return nil, nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope", this.Variable.Content))
+			}
 		default:
 			return currentNode, ctx, nil
 		}
 	}
+}
+
+func makeEnviron(deps *StringValue) []string {
+	if deps == nil {
+		return os.Environ()
+	}
+	environ := map[string]string{}
+	for _, env := range os.Environ() {
+		spl := strings.SplitN(env, "=", 2)
+		if len(spl) != 2 {
+			continue
+		}
+		environ[spl[0]] = spl[1]
+	}
+	for content, dep := range deps.Split() {
+		if dep == nil {
+			continue
+		}
+		for name, pair := range dep.Attributes {
+			if prev, ok := environ[name]; ok {
+				environ[name] = fmt.Sprintf("%s:%s/%s", prev, content, pair.Value.Content)
+			} else {
+				environ[name] = content + "/" + pair.Value.Content
+			}
+		}
+	}
+	result := make([]string, len(environ))
+	i := 0
+	for key, value := range environ {
+		result[i] = key + "=" + value
+		i++
+	}
+	return result
 }
 
 func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
@@ -153,7 +201,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, this.Pos, "while evaluating list")
 			}
-			builder.WriteValue(anyValue)
+			builder.WriteValue(anyValue, true)
 		}
 		return builder.Value(this), nil
 	case *ast.LiteralNode:
@@ -195,6 +243,15 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 
 		ctx = ctx.SetLiteral("out", outpath)
 
+		depsNode := ctx.Get("depends")
+		var deps *StringValue
+		if depsNode != nil {
+			deps, err = ctx.Evaluate(depsNode)
+			if err != nil {
+				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating dependencies")
+			}
+		}
+
 		if scriptEval := ctx.Get("script"); scriptEval != nil {
 			scriptValue, err := ctx.Evaluate(scriptEval)
 			if err != nil {
@@ -205,6 +262,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			cmd.Stdin = strings.NewReader(scriptValue.Content)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
+			cmd.Env = makeEnviron(deps)
 			cmd.Dir = workdir
 			if err = cmd.Run(); err != nil {
 				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
@@ -222,20 +280,6 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}
 
 		return nil, errors.NewRecipeError(this.GetPosition(), value.Content)
-	case *ast.ReferenceNode:
-		value := ctx.Get(this.Variable.Content)
-		if value == nil {
-			similar, dist := ctx.findSimilar(this.Variable.Content)
-			if dist <= MaxSimilarityDistance {
-				return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope, do you mean `%s`?", this.Variable.Content, similar))
-			}
-			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("`%s` is not defined in current scope", this.Variable.Content))
-		}
-		eval, err := ctx.Evaluate(value)
-		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), "refered here")
-		}
-		return eval, nil
 	case *ast.StringNode:
 		builder := ValueBuilder{}
 		for _, content := range this.Content {
@@ -243,7 +287,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			if err != nil {
 				return nil, err
 			}
-			builder.WriteValue(value)
+			builder.WriteValue(value, false)
 		}
 		return builder.Value(this), nil
 	default:

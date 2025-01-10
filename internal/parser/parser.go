@@ -12,8 +12,8 @@ import (
 )
 
 type parseState struct {
-	filename string
-	lex      *Tokenizer
+	file *errors.ErrorFile
+	lex  *Tokenizer
 }
 
 type parseError struct {
@@ -44,8 +44,9 @@ func (this *parseState) choice(choices ...func() (ast.Node, *parseError)) (ast.N
 
 func (this *parseState) newPos(from, to Token) errors.Position {
 	return errors.Position{
-		Filename: this.filename,
-		Content:  &this.lex.Text, Start: from.Start, End: to.End,
+		File:  this.file,
+		Start: from.Start,
+		End:   to.End,
 	}
 }
 
@@ -247,10 +248,9 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 	}
 	return &ast.OutputNode{
 		Pos: errors.Position{
-			Filename: this.filename,
-			Content:  &this.lex.Text,
-			Start:    begin.Start,
-			End:      options.GetPosition().End,
+			File:  this.file,
+			Start: begin.Start,
+			End:   options.GetPosition().End,
 		},
 		Options: options.(*ast.DictNode).Items,
 	}, nil
@@ -267,10 +267,9 @@ func (this *parseState) parseImport() (ast.Node, *parseError) {
 	}
 	return &ast.ImportNode{
 		Pos: errors.Position{
-			Filename: this.filename,
-			Content:  &this.lex.Text,
-			Start:    begin.Start,
-			End:      source.GetPosition().End,
+			File:  this.file,
+			Start: begin.Start,
+			End:   source.GetPosition().End,
 		},
 		Source: source,
 	}, nil
@@ -287,10 +286,9 @@ func (this *parseState) parsePanic() (ast.Node, *parseError) {
 	}
 	return &ast.PanicNode{
 		Pos: errors.Position{
-			Filename: this.filename,
-			Content:  &this.lex.Text,
-			Start:    begin.Start,
-			End:      message.GetPosition().End,
+			File:  this.file,
+			Start: begin.Start,
+			End:   message.GetPosition().End,
 		},
 		Message: message,
 	}, nil
@@ -326,10 +324,9 @@ func (this *parseState) parseString(wrap string) func() (ast.Node, *parseError) 
 				if builder.Len() > 0 {
 					node := &ast.LiteralNode{
 						Pos: errors.Position{
-							Filename: this.filename,
-							Content:  &this.lex.Text,
-							Start:    currentPos,
-							End:      currentPos + builder.Len(),
+							File:  this.file,
+							Start: currentPos,
+							End:   currentPos + builder.Len(),
 						},
 						Content: builder.String(),
 					}
@@ -355,10 +352,9 @@ func (this *parseState) parseString(wrap string) func() (ast.Node, *parseError) 
 		if builder.Len() > 0 {
 			node := &ast.LiteralNode{
 				Pos: errors.Position{
-					Filename: this.filename,
-					Content:  &this.lex.Text,
-					Start:    currentPos,
-					End:      currentPos + builder.Len(),
+					File:  this.file,
+					Start: currentPos,
+					End:   currentPos + builder.Len(),
 				},
 				Content: builder.String(),
 			}
@@ -487,10 +483,14 @@ func unique[T comparable](slc []T) []T {
 }
 
 func Parse(filename, content string) (ast.Node, error) {
+	file := &errors.ErrorFile{
+		Filename: filename,
+		Content:  content,
+	}
 	lex := NewTokenizer(content)
 	parser := parseState{
-		filename: filename,
-		lex:      lex,
+		file: file,
+		lex:  lex,
 	}
 
 	lex.Next()

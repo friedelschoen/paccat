@@ -1,6 +1,9 @@
 package types
 
 import (
+	"iter"
+	"strings"
+
 	"friedelschoen.io/paccat/internal/ast"
 )
 
@@ -29,6 +32,61 @@ func (this *StringValue) ValueAt(pos int) *StringValue {
 		}
 	}
 	return this
+}
+
+func (this *StringValue) Split() iter.Seq2[string, *StringValue] {
+	return func(yield func(string, *StringValue) bool) {
+		begin := 0
+		inString := false
+		builder := strings.Builder{}
+
+		for i := 0; i <= len(this.Content); i++ {
+			// Handle end of content for final yield
+			if i == len(this.Content) || (!inString && strings.ContainsRune(" \t\n\r", rune(this.Content[i]))) {
+				if i > begin { // Ensure non-empty substring
+					var value *StringValue = nil
+					for _, item := range this.StringSource {
+						if item.Start <= begin && item.Start+item.Len >= i {
+							value = item.Value
+							break
+						}
+					}
+
+					// Handle string from builder or direct slice
+					part := builder.String()
+					if part == "" {
+						part = this.Content[begin:i]
+					} else {
+						builder.Reset()
+					}
+
+					if !yield(part, value) {
+						return
+					}
+				}
+				begin = i + 1
+			} else if inString {
+				if this.Content[i] == '"' {
+					if i < len(this.Content)-1 && this.Content[i+1] == '"' {
+						// Escaped quote
+						builder.WriteByte('"')
+						i++
+					} else {
+						// End of quoted string
+						inString = false
+					}
+				} else {
+					builder.WriteByte(this.Content[i])
+				}
+			} else {
+				if this.Content[i] == '"' {
+					// Start of quoted string
+					inString = true
+					begin = i + 1
+				}
+			}
+		}
+	}
 }
 
 func (this *StringValue) FlatSources() []StringSource {
