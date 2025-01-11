@@ -3,13 +3,10 @@ output {
 
     fetch = import ./name.pcr (name="hello", world="1"),
 
-    repo = output {
-        name = "fetch-textselect",
-        script = ''
+    repo = output ''
             git clone https://github.com/friedelschoen/textselect.git {{ $out }}
             rm -rf {{ $out }}/.git
-        ''
-    },
+    '',
 
     depends = [
         import ./dwm.pcr

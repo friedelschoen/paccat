@@ -8,7 +8,7 @@ import (
 
 type OutputNode struct {
 	Pos     errors.Position
-	Options LiteralMap
+	Options Node
 }
 
 func (this *OutputNode) Name() string {

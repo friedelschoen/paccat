@@ -210,8 +210,19 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			Content: this.Content,
 		}, nil
 	case *ast.OutputNode:
-		for key, value := range this.Options {
-			ctx = ctx.Set(key, value.Value)
+		var scriptEval ast.Node
+		if opt, ok := this.Options.(*ast.DictNode); ok {
+			for key, value := range opt.Items {
+				if key == "script" {
+					scriptEval = value.Value
+				}
+				ctx = ctx.Set(key, value.Value)
+			}
+			if scriptEval == nil {
+				return nil, errors.NewRecipeError(this.GetPosition(), "output requires field `script`")
+			}
+		} else {
+			scriptEval = this.Options
 		}
 
 		sum := ast.NodeHash(this)
@@ -260,21 +271,19 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			exports = exp.Attributes
 		}
 
-		if scriptEval := ctx.Get("script"); scriptEval != nil {
-			scriptValue, err := ctx.Evaluate(scriptEval)
-			if err != nil {
-				return nil, errors.WrapRecipeError(err, scriptEval.GetPosition(), "while evaluating output")
-			}
+		scriptValue, err := ctx.Evaluate(scriptEval)
+		if err != nil {
+			return nil, errors.WrapRecipeError(err, scriptEval.GetPosition(), "while evaluating output")
+		}
 
-			cmd := exec.Command("sh")
-			cmd.Stdin = strings.NewReader(scriptValue.Content)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Env = makeEnviron(deps)
-			cmd.Dir = workdir
-			if err = cmd.Run(); err != nil {
-				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
-			}
+		cmd := exec.Command("sh")
+		cmd.Stdin = strings.NewReader(scriptValue.Content)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = makeEnviron(deps)
+		cmd.Dir = workdir
+		if err = cmd.Run(); err != nil {
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating output")
 		}
 
 		return &StringValue{

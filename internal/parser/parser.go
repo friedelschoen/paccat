@@ -242,7 +242,7 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 	if err != nil {
 		return nil, err
 	}
-	options, err := this.parseDict()
+	options, err := this.parseValue()
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 			Start: begin.Start,
 			End:   options.GetPosition().End,
 		},
-		Options: options.(*ast.DictNode).Items,
+		Options: options,
 	}, nil
 }
 
