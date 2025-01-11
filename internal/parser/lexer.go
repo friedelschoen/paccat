@@ -21,10 +21,14 @@ type Token struct {
 	Name, Content string
 }
 
+type TokenizerState struct {
+	pos   int
+	state []state
+	token Token
+}
+
 type Tokenizer struct {
-	current   []state
-	save      int
-	savestate []state
+	current []state
 
 	Text  string
 	Pos   int
@@ -154,12 +158,16 @@ func (this *Tokenizer) Reset() {
 	this.current = []state{tokens[0].state}
 }
 
-func (this *Tokenizer) Save() {
-	this.save = this.Pos
-	this.savestate = this.current
+func (this *Tokenizer) Save() TokenizerState {
+	return TokenizerState{
+		pos:   this.Pos,
+		state: this.current,
+		token: this.Token,
+	}
 }
 
-func (this *Tokenizer) Load() {
-	this.Pos = this.save
-	this.current = this.savestate
+func (this *Tokenizer) Load(save TokenizerState) {
+	this.Pos = save.pos
+	this.current = save.state
+	this.Token = save.token
 }

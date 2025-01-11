@@ -13,7 +13,7 @@ type LiteralNode struct {
 }
 
 func (this *LiteralNode) Name() string {
-	return "literal-" + this.Content
+	return "'" + this.Content + "'"
 }
 
 func (this *LiteralNode) GetPosition() errors.Position {
