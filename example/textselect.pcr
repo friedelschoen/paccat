@@ -9,9 +9,14 @@ output {
             git clone https://github.com/friedelschoen/textselect.git {{ $out }}
             rm -rf {{ $out }}/.git
         ''
-     },
+    },
+
+    depends = [
+        import ./dwm.pcr
+    ],
 
     script = ''
+        printenv
         cd {{ $repo }}
         make
         mkdir -p {{ $out }}/bin {{ $out }}/share/man/man1

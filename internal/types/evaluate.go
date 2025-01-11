@@ -243,13 +243,21 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 
 		ctx = ctx.SetLiteral("out", outpath)
 
-		depsNode := ctx.Get("depends")
 		var deps *StringValue
-		if depsNode != nil {
+		if depsNode := ctx.Get("depends"); depsNode != nil {
 			deps, err = ctx.Evaluate(depsNode)
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating dependencies")
 			}
+		}
+
+		var exports map[string]ValuePair
+		if exportsNode := ctx.Get("exports"); exportsNode != nil {
+			exp, err := ctx.Evaluate(exportsNode)
+			if err != nil {
+				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluating dependencies")
+			}
+			exports = exp.Attributes
 		}
 
 		if scriptEval := ctx.Get("script"); scriptEval != nil {
@@ -270,8 +278,9 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}
 
 		return &StringValue{
-			Node:    this,
-			Content: outpath,
+			Node:       this,
+			Content:    outpath,
+			Attributes: exports,
 		}, nil
 	case *ast.PanicNode:
 		value, err := ctx.Evaluate(this.Message)

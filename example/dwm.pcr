@@ -1,8 +1,7 @@
 output {
 	name = "dwm",
 
-    fetch = import ./fetch.pcr,
-	workdir = $fetch (url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z", wget_option=""),
+	workdir = (import ./fetch.pcr) (url="https://dl.suckless.org/dwm/dwm-6.5.tar.gz", tar_options="-z", wget_option=""),
 
 	exports = { PATH="/bin" },
 
