@@ -6,8 +6,8 @@ output {
 	exports = { PATH="/bin" },
 
 	script = ''
-	    cp -r {{ $workdir }}/dwm-6.5/* .
+	    cp -r {{ workdir }}/dwm-6.5/* .
 	    make
-	    make PREFIX={{ $out }} install
+	    make PREFIX={{ out }} install
 	''
 }

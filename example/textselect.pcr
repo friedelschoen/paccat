@@ -1,11 +1,9 @@
 output {
     name = "textselect",
 
-    fetch = (import ./name.pcr) (name="hello", world="1"),
-
     repo = output ''
-        git clone https://github.com/friedelschoen/textselect.git {{ $out }}
-        rm -rf {{ $out }}/.git
+        git clone https://github.com/friedelschoen/textselect.git {{ out }}
+        rm -rf {{ out }}/.git
     '',
 
     depends = [
@@ -13,11 +11,9 @@ output {
     ],
 
     script = ''
-        {{ $fetch }}
-        printenv
-        cd {{ $repo }}
+        cd {{ repo }}
         make
-        mkdir -p {{ $out }}/bin {{ $out }}/share/man/man1
-        make PREFIX={{ $out }} install
+        mkdir -p {{ out }}/bin {{ out }}/share/man/man1
+        make PREFIX={{ out }} install
     ''
 }

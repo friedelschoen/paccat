@@ -1,5 +1,12 @@
-textselect = import textselect.pcr {};
+output {
+    depends = [
+        import ./textselect.pcr,
+        import ./dwm.pcr
+    ],
 
-build = with [ $textselect ]: output ""
-    printenv | sort > {{ $out }}
-"";
+    script = ''
+        mkdir {{out}}
+        printenv > {{out}}/env
+        echo '{{depends}}' > {{out}}/depends
+    ''
+}

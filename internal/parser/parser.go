@@ -61,7 +61,7 @@ func (this *parseState) expectTokenContent(content string) (Token, *parseError) 
 
 func (this *parseState) asLiteral(tok Token) *ast.LiteralNode {
 	return &ast.LiteralNode{
-		Pos:     this.newPos(tok, tok),
+		Pos:     tok.GetPosition(),
 		Content: tok.Content,
 	}
 }
@@ -213,16 +213,12 @@ func (this *parseState) parseSurrounded() (ast.Node, *parseError) {
 }
 
 func (this *parseState) parseReference() (ast.Node, *parseError) {
-	begin, err := this.expectTokenContent("$")
-	if err != nil {
-		return nil, err
-	}
 	ident, err := this.expectToken("ident")
 	if err != nil {
 		return nil, err
 	}
 	return &ast.ReferenceNode{
-		Pos:      this.newPos(begin, ident),
+		Pos:      ident.GetPosition(),
 		Variable: this.asLiteral(ident),
 	}, nil
 }
@@ -351,7 +347,7 @@ func (this *parseState) parsePath() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.LiteralNode{
-		Pos:     this.newPos(val, val),
+		Pos:     val.GetPosition(),
 		Content: val.Content,
 	}, nil
 }
