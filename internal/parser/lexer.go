@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"friedelschoen.io/paccat/internal/errors"
 )
 
 type state string
@@ -17,8 +19,12 @@ type tokenDefine struct {
 }
 
 type Token struct {
-	Start, End    int
+	Pos           errors.Position
 	Name, Content string
+}
+
+func (this Token) GetPosition() errors.Position {
+	return this.Pos
 }
 
 type TokenizerState struct {
@@ -30,7 +36,7 @@ type TokenizerState struct {
 type Tokenizer struct {
 	current []state
 
-	Text  string
+	File  *errors.ErrorFile
 	Pos   int
 	Valid bool
 	Token Token
@@ -74,19 +80,15 @@ func parseTokens(content string) ([]tokenDefine, state) {
 	return tokens, firstState
 }
 
-func NewTokenizer(text string) *Tokenizer {
-	return &Tokenizer{
-		Text:    text,
-		current: []state{tokens[0].state},
-	}
-}
-
 func (this *Tokenizer) Next() bool {
 	if len(this.current) == 0 {
 		if len(this.current) == 0 {
 			this.Token = Token{
-				Start:   this.Pos,
-				End:     this.Pos + 1,
+				Pos: errors.Position{
+					File:  this.File,
+					Start: this.Pos,
+					End:   this.Pos + 1,
+				},
 				Name:    "illegal",
 				Content: "empty state",
 			}
@@ -95,19 +97,25 @@ func (this *Tokenizer) Next() bool {
 		}
 	}
 
-	if this.Pos >= len(this.Text) {
+	if this.Pos >= len(this.File.Content) {
 		if len(this.current) != 1 {
 			this.Token = Token{
-				Start:   this.Pos - 1,
-				End:     this.Pos,
+				Pos: errors.Position{
+					File:  this.File,
+					Start: this.Pos - 1,
+					End:   this.Pos,
+				},
 				Name:    "illegal",
 				Content: fmt.Sprintf("unclosed %s", this.current[0]),
 			}
 		} else {
 			this.Token = Token{
-				Start: this.Pos - 1,
-				End:   this.Pos,
-				Name:  "eof",
+				Pos: errors.Position{
+					File:  this.File,
+					Start: this.Pos - 1,
+					End:   this.Pos,
+				},
+				Name: "eof",
 			}
 		}
 		this.Valid = false
@@ -119,7 +127,7 @@ func (this *Tokenizer) Next() bool {
 			continue
 		}
 
-		loc := tok.expr.FindStringIndex(this.Text[this.Pos:])
+		loc := tok.expr.FindStringIndex(this.File.Content[this.Pos:])
 		if loc == nil {
 			continue
 		}
@@ -127,15 +135,18 @@ func (this *Tokenizer) Next() bool {
 		if tok.stateChange != nil {
 			this.current = tok.stateChange(this.current)
 		}
-		content := this.Text[this.Pos : this.Pos+length]
+		content := this.File.Content[this.Pos : this.Pos+length]
 		this.Pos += length
 
 		if tok.skip {
 			return this.Next()
 		}
 		this.Token = Token{
-			Start:   this.Pos - length,
-			End:     this.Pos,
+			Pos: errors.Position{
+				File:  this.File,
+				Start: this.Pos - length,
+				End:   this.Pos,
+			},
 			Name:    tok.name,
 			Content: string(content),
 		}
@@ -144,10 +155,13 @@ func (this *Tokenizer) Next() bool {
 	}
 
 	this.Token = Token{
-		Start:   this.Pos,
-		End:     this.Pos + 1,
+		Pos: errors.Position{
+			File:  this.File,
+			Start: this.Pos,
+			End:   this.Pos + 1,
+		},
 		Name:    "illegal",
-		Content: fmt.Sprintf("illegal character %c", this.Text[this.Pos]),
+		Content: fmt.Sprintf("illegal character `%c`", this.File.Content[this.Pos]),
 	}
 	this.Valid = false
 	return false

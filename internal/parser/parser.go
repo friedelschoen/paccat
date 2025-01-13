@@ -1,10 +1,6 @@
 package parser
 
 import (
-	"fmt"
-	"io"
-	"os"
-	"slices"
 	"strings"
 
 	"friedelschoen.io/paccat/internal/ast"
@@ -12,28 +8,22 @@ import (
 )
 
 type parseState struct {
-	file *errors.ErrorFile
-	lex  *Tokenizer
-}
-
-type parseError struct {
-	got    Token
-	expect []string /* expected ... */
+	Tokenizer
 }
 
 func (this *parseState) choice(choices ...func() (ast.Node, *parseError)) (ast.Node, *parseError) {
 	expect := []string{}
-	got := this.lex.Token
+	got := this.Token
 
 	for _, ch := range choices {
-		lexsave := this.lex.Save()
+		lexsave := this.Save()
 		res, err := ch()
 		if err == nil {
 			return res, nil
 		}
-		this.lex.Load(lexsave)
+		this.Load(lexsave)
 
-		if err.got.Start > got.Start {
+		if err.got.Pos.Start > got.Pos.Start {
 			expect = err.expect
 			got = err.got
 		} else if err.got == got {
@@ -43,30 +33,30 @@ func (this *parseState) choice(choices ...func() (ast.Node, *parseError)) (ast.N
 	return nil, &parseError{got, expect}
 }
 
-func (this *parseState) newPos(from, to Token) errors.Position {
+func (this *parseState) newPos(from, to errors.Positioned) errors.Position {
 	return errors.Position{
-		File:  this.file,
-		Start: from.Start,
-		End:   to.End,
+		File:  this.File,
+		Start: from.GetPosition().Start,
+		End:   to.GetPosition().End,
 	}
 }
 
 func (this *parseState) expectToken(name string) (Token, *parseError) {
-	current := this.lex.Token
+	current := this.Token
 	if current.Name == name {
-		this.lex.Next()
+		this.Next()
 		return current, nil
 	}
-	return Token{}, &parseError{this.lex.Token, []string{name}}
+	return Token{}, &parseError{this.Token, []string{name}}
 }
 
 func (this *parseState) expectTokenContent(content string) (Token, *parseError) {
-	current := this.lex.Token
+	current := this.Token
 	if current.Content == content {
-		this.lex.Next()
+		this.Next()
 		return current, nil
 	}
-	return Token{}, &parseError{this.lex.Token, []string{"`" + content + "`"}}
+	return Token{}, &parseError{this.Token, []string{"`" + content + "`"}}
 }
 
 func (this *parseState) asLiteral(tok Token) *ast.LiteralNode {
@@ -83,7 +73,7 @@ func (this *parseState) parseLambda() (ast.Node, *parseError) {
 	}
 	args := ast.LiteralMap{}
 tokenLoop:
-	for this.lex.Valid {
+	for this.Valid {
 		if len(args) > 0 {
 			_, err := this.expectTokenContent(",")
 			if err != nil {
@@ -137,7 +127,7 @@ func (this *parseState) parseDict() (ast.Node, *parseError) {
 	}
 	items := ast.LiteralMap{}
 tokenLoop:
-	for this.lex.Valid {
+	for this.Valid {
 		if len(items) > 0 {
 			_, err := this.expectTokenContent(",")
 			if err != nil {
@@ -180,7 +170,7 @@ func (this *parseState) parseList() (ast.Node, *parseError) {
 	}
 	items := []ast.Node{}
 tokenLoop:
-	for this.lex.Valid {
+	for this.Valid {
 		if len(items) > 0 {
 			_, err := this.expectTokenContent(",")
 			if err != nil {
@@ -247,11 +237,7 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.OutputNode{
-		Pos: errors.Position{
-			File:  this.file,
-			Start: begin.Start,
-			End:   options.GetPosition().End,
-		},
+		Pos:     this.newPos(begin, options),
 		Options: options,
 	}, nil
 }
@@ -266,11 +252,7 @@ func (this *parseState) parseImport() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.ImportNode{
-		Pos: errors.Position{
-			File:  this.file,
-			Start: begin.Start,
-			End:   source.GetPosition().End,
-		},
+		Pos:    this.newPos(begin, source),
 		Source: source,
 	}, nil
 }
@@ -285,38 +267,34 @@ func (this *parseState) parsePanic() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.PanicNode{
-		Pos: errors.Position{
-			File:  this.file,
-			Start: begin.Start,
-			End:   message.GetPosition().End,
-		},
+		Pos:     this.newPos(begin, message),
 		Message: message,
 	}, nil
 }
 
 func (this *parseState) parseString() (ast.Node, *parseError) {
-	begin := this.lex.Token
+	begin := this.Token
 	if begin.Content != "\"" && begin.Content != "''" {
-		return nil, &parseError{this.lex.Token, []string{"`''`", "`\"`"}}
+		return nil, &parseError{this.Token, []string{"`''`", "`\"`"}}
 	}
-	this.lex.Next()
+	this.Next()
 
 	builder := strings.Builder{}
 	result := make([]ast.Node, 0)
 	currentPos := 0
 
 tokenLoop:
-	for this.lex.Valid {
-		switch this.lex.Token.Name {
+	for this.Valid {
+		switch this.Token.Name {
 		case "char":
 			if builder.Len() == 0 {
-				currentPos = this.lex.Token.Start
+				currentPos = this.Token.Pos.Start
 			}
-			builder.WriteString(this.lex.Token.Content)
-			this.lex.Next()
+			builder.WriteString(this.Token.Content)
+			this.Next()
 
 		case "interp-begin":
-			this.lex.Next()
+			this.Next()
 			value, exp := this.parseValue()
 			if exp != nil {
 				return nil, exp
@@ -324,7 +302,7 @@ tokenLoop:
 			if builder.Len() > 0 {
 				node := &ast.LiteralNode{
 					Pos: errors.Position{
-						File:  this.file,
+						File:  this.File,
 						Start: currentPos,
 						End:   currentPos + builder.Len(),
 					},
@@ -352,7 +330,7 @@ tokenLoop:
 	if builder.Len() > 0 {
 		node := &ast.LiteralNode{
 			Pos: errors.Position{
-				File:  this.file,
+				File:  this.File,
 				Start: currentPos,
 				End:   currentPos + builder.Len(),
 			},
@@ -384,22 +362,22 @@ func (this *parseState) parseValue() (ast.Node, *parseError) {
 		this.parsePath,
 		this.parseLambda,
 		this.parseSurrounded,
-		this.parseReference,
 		this.parseList,
 		this.parseDict,
 		this.parseOutput,
 		this.parseImport,
 		this.parsePanic,
+		this.parseReference,
 	)
 	if err != nil {
 		return nil, err
 	}
 tokenLoop:
-	for this.lex.Valid {
-		begin := this.lex.Token
+	for this.Valid {
+		begin := this.Token
 		switch begin.Content {
 		case ".":
-			this.lex.Next()
+			this.Next()
 			ident, err := this.expectToken("ident")
 			if err != nil {
 				return nil, err
@@ -410,10 +388,10 @@ tokenLoop:
 				Attribute: this.asLiteral(ident),
 			}
 		case "(":
-			this.lex.Next()
+			this.Next()
 			args := ast.LiteralMap{}
 		argLoop:
-			for this.lex.Valid {
+			for this.Valid {
 				if len(args) > 0 {
 					_, err := this.expectTokenContent(",")
 					if err != nil {
@@ -463,66 +441,4 @@ func (this *parseState) parseFile() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return val, nil
-}
-
-func unique[T comparable](slc []T) []T {
-	for i := 0; i < len(slc); i++ {
-		for j := i + 1; j < len(slc); j++ {
-			if slc[i] == slc[j] {
-				l := len(slc)
-				slc[i] = slc[l-1] /* move last element to current */
-				slc = slc[:l-1]   /* shrink slice by one */
-				i--               /* decrement i, we want to re-check this */
-				break
-			}
-		}
-	}
-	return slc
-}
-
-func Parse(filename, content string) (ast.Node, error) {
-	file := &errors.ErrorFile{
-		Filename: filename,
-		Content:  content,
-	}
-	lex := NewTokenizer(content)
-	parser := parseState{
-		file: file,
-		lex:  lex,
-	}
-
-	lex.Next()
-	result, exp := parser.parseFile()
-	if exp != nil {
-		exp.expect = unique(exp.expect)
-		slices.Sort(exp.expect)
-		pos := parser.newPos(exp.got, exp.got)
-		message := strings.Builder{}
-		message.WriteString("expected token ")
-		for _, token := range exp.expect {
-			message.WriteString(token)
-			message.WriteString(", ")
-		}
-		if exp.got.Name == "illegal" {
-			message.WriteString("but got ")
-			message.WriteString(exp.got.Content)
-		} else {
-			fmt.Fprintf(&message, "but got `%s` (%s)", exp.got.Content, exp.got.Name)
-		}
-		return nil, errors.NewRecipeError(pos, message.String())
-	}
-	return result, nil
-}
-
-func ParseFile(filename string) (ast.Node, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	return Parse(filename, string(content))
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type Node interface {
-	GetPosition() errors.Position
+	errors.Positioned
 	Name() string
 	GetChildren() []Node
 }

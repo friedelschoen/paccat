@@ -1,6 +1,10 @@
 package parser
 
-import "regexp"
+import (
+	"regexp"
+
+	"friedelschoen.io/paccat/internal/util"
+)
 
 type stateFunc func([]state) []state
 
@@ -12,7 +16,7 @@ func statePop() stateFunc {
 
 func statePush(s state) stateFunc {
 	return func(in []state) []state {
-		return append([]state{s}, in...)
+		return util.Prepend(in, s)
 	}
 }
 
