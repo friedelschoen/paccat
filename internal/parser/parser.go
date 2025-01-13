@@ -379,6 +379,21 @@ tokenLoop:
 				Target:    val,
 				Attribute: this.asLiteral(ident),
 			}
+		case "[":
+			this.Next()
+			attr, err := this.parseValue()
+			if err != nil {
+				return nil, err
+			}
+			end, err := this.expectTokenContent("]")
+			if err != nil {
+				return nil, err
+			}
+			val = &ast.GetterNode{
+				Pos:       stretch(begin, end),
+				Target:    val,
+				Attribute: attr,
+			}
 		case "(":
 			this.Next()
 			args := ast.LiteralMap{}

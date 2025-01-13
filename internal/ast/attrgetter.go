@@ -7,7 +7,7 @@ import (
 type GetterNode struct {
 	Pos       errors.Position
 	Target    Node
-	Attribute *LiteralNode
+	Attribute Node
 }
 
 func (this *GetterNode) Name() string {
