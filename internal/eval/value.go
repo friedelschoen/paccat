@@ -89,14 +89,20 @@ func (this *StringValue) Split() iter.Seq2[string, *StringValue] {
 	}
 }
 
-func (this *StringValue) FlatSources() []StringSource {
-	result := make([]StringSource, 0, len(this.StringSource))
-	result = append(result, StringSource{0, len(this.Content), this})
-	for _, source := range this.StringSource {
-		result = append(result, source)
-		for _, child := range source.Value.FlatSources() {
-			result = append(result, StringSource{source.Start + child.Start, child.Len, child.Value})
+func (this *StringValue) FlatSources() iter.Seq[StringSource] {
+	return func(yield func(StringSource) bool) {
+		if !yield(StringSource{0, len(this.Content), this}) {
+			return
+		}
+		for _, source := range this.StringSource {
+			if !yield(source) {
+				return
+			}
+			for child := range source.Value.FlatSources() {
+				if !yield(StringSource{source.Start + child.Start, child.Len, child.Value}) {
+					return
+				}
+			}
 		}
 	}
-	return result
 }
