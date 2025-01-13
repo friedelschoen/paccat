@@ -1,12 +1,10 @@
 output {
-    depends = [
-        import ./textselect.pcr,
-        import ./dwm.pcr
-    ],
-
-    script = ''
-        mkdir {{out}}
-        printenv > {{out}}/env
-        echo '{{depends}}' > {{out}}/depends
-    ''
+    script = [
+        1,
+        ''
+            mkdir {{out}}
+            printenv > {{out}}/env
+            echo > {{out}}/depends
+        ''
+    ][1]
 }

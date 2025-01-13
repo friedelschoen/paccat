@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 
 	"friedelschoen.io/paccat/internal/ast"
@@ -60,14 +61,18 @@ func (ctx Scope) Set(name string, value ast.Node) Scope {
 	return newctx
 }
 
-func (ctx Scope) SetLiteral(name string, content string) Scope {
-	return ctx.Set(name, &ast.LiteralNode{
+func asLiteral(content string) *ast.LiteralNode {
+	return &ast.LiteralNode{
 		Pos: errors.Position{
 			File:  &errors.ErrorFile{Filename: "<eval>", Content: content},
 			Start: 0,
 			End:   len(content)},
 		Content: content,
-	})
+	}
+}
+
+func (ctx Scope) SetLiteral(name string, content string) Scope {
+	return ctx.Set(name, asLiteral(content))
 }
 
 func (ctx Scope) Unwrap(currentNode ast.Node) (ast.Node, Scope, error) {
@@ -165,12 +170,16 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 	case *ast.GetterNode:
 		value, err := ctx.Evaluate(this.Target)
 		if err != nil {
-			return nil, errors.WrapRecipeError(err, this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while trying to get attribute")
 		}
 
-		res, ok := value.Attributes[this.Attribute.Content]
+		attr, err := ctx.Evaluate(this.Attribute)
+		if err != nil {
+			return nil, errors.WrapRecipeError(err, this.GetPosition(), "while trying to get attribute")
+		}
+		res, ok := value.Attributes[attr.Content]
 		if !ok {
-			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("while trying to get attribute `%s`", this.Attribute.Content))
+			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("target has no attribute `%s`", attr.Content))
 		}
 		return res.Value, nil
 	case *ast.DictNode:
@@ -193,6 +202,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}, nil
 	case *ast.ListNode:
 		builder := ValueBuilder{}
+		attrs := make(map[string]ValuePair)
 		for i, item := range this.Items {
 			if i > 0 {
 				builder.WriteByte(' ')
@@ -202,12 +212,29 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 				return nil, errors.WrapRecipeError(err, this.Pos, "while evaluating list")
 			}
 			builder.WriteValue(anyValue, true)
+
+			istr := strconv.Itoa(i)
+			attrs[istr] = ValuePair{
+				Key: &StringValue{
+					Node:    asLiteral(istr),
+					Content: istr,
+				},
+				Value: anyValue,
+			}
 		}
-		return builder.Value(this), nil
+		res := builder.Value()
+		res.Node = this
+		res.Attributes = attrs
+		return res, nil
 	case *ast.LiteralNode:
 		return &StringValue{
 			Node:    this,
 			Content: this.Content,
+		}, nil
+	case *ast.NumberNode:
+		return &StringValue{
+			Node:    this,
+			Content: this.Content.Content,
 		}, nil
 	case *ast.OutputNode:
 		var scriptEval ast.Node
@@ -307,7 +334,9 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			}
 			builder.WriteValue(value, false)
 		}
-		return builder.Value(this), nil
+		res := builder.Value()
+		res.Node = this
+		return res, nil
 	default:
 		return nil, errors.NewRecipeError(currentNode.GetPosition(), currentNode.Name()+" is not evaluable")
 	}

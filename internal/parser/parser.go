@@ -219,6 +219,17 @@ func (this *parseState) parseReference() (ast.Node, *parseError) {
 	}, nil
 }
 
+func (this *parseState) parseNumber() (ast.Node, *parseError) {
+	token, err := this.expectToken("number")
+	if err != nil {
+		return nil, err
+	}
+	return &ast.NumberNode{
+		Pos:     token.GetPosition(),
+		Content: this.asLiteral(token),
+	}, nil
+}
+
 func (this *parseState) parseOutput() (ast.Node, *parseError) {
 	begin, err := this.expectTokenContent("output")
 	if err != nil {
@@ -351,6 +362,7 @@ func (this *parseState) parsePath() (ast.Node, *parseError) {
 func (this *parseState) parseValue() (ast.Node, *parseError) {
 	val, err := this.choice(
 		this.parseString,
+		this.parseNumber,
 		this.parsePath,
 		this.parseLambda,
 		this.parseSurrounded,
