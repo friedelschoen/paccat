@@ -2,8 +2,6 @@ package errors
 
 import (
 	"fmt"
-	"io"
-	"strings"
 )
 
 type ErrorFile struct {
@@ -19,6 +17,14 @@ type Position struct {
 
 func (this Position) Len() int {
 	return this.End - this.Start
+}
+
+func (this Position) Stretch(to Position) Position {
+	return Position{
+		File:  this.File,
+		Start: this.Start,
+		End:   to.End,
+	}
 }
 
 type Positioned interface {
@@ -52,85 +58,14 @@ func NewRecipeError(pos Position, message string) error {
 }
 
 func WrapRecipeError(previous error, pos Position, message string) error {
-	if _, ok := previous.(*RecipeError); ok {
+	switch previous.(type) {
+	case ContextError, Positioned:
 		return &RecipeError{pos, previous, message}
-	} else if message != "" {
-		return &RecipeError{pos, nil, fmt.Sprintf("%s: %v", message, previous)}
-	} else {
-		return &RecipeError{pos, nil, previous.Error()}
-	}
-}
-
-func PrintTrace(writer io.Writer, current error) {
-	for current != nil {
-		err, ok := current.(Positioned)
-		if !ok {
-			fmt.Fprintf(writer, "??: %v\n", current)
+	default:
+		if message != "" {
+			return &RecipeError{pos, nil, fmt.Sprintf("%s: %v", message, previous)}
 		} else {
-			pos := err.GetPosition()
-
-			endOffset := 0
-			line := 0
-			var startLine, startOffset int
-
-			lines := strings.SplitAfter(pos.File.Content, "\n")
-			for _, lineStr := range lines {
-				line++
-				beginOffset := endOffset
-				endOffset += len(lineStr)
-
-				if pos.Start > endOffset {
-					continue
-				}
-
-				if startLine == 0 {
-					startLine = line
-					startOffset = pos.Start - beginOffset
-				}
-
-				/* it's a oneliner */
-				if pos.Start >= beginOffset && pos.End < endOffset {
-					padding := 0
-					for strings.ContainsRune(" \t", rune(lineStr[0])) {
-						lineStr = lineStr[1:]
-						padding--
-					}
-					fmt.Fprintf(writer, "%3d | %s", line, lineStr)
-					if lineStr[len(lineStr)-1] != '\n' {
-						fmt.Fprintln(writer)
-					}
-					writer.Write([]byte("    | ")) // Padding to align under text
-
-					padding += pos.Start - beginOffset
-					for i := 0; i < padding; i++ {
-						writer.Write([]byte{' '})
-					}
-					writer.Write([]byte{'^'})
-
-					length := pos.Len()
-					for i := 0; i < length-1; i++ {
-						writer.Write([]byte{'-'})
-					}
-					writer.Write([]byte{'\n'})
-				} else {
-					fmt.Fprintf(writer, "%3d |> %s", line, lineStr)
-					if lineStr[len(lineStr)-1] != '\n' {
-						fmt.Fprintln(writer)
-					}
-				}
-
-				if pos.End < endOffset {
-					break
-				}
-			}
-
-			// Add the error message
-			fmt.Fprintf(writer, "%s:%d:%d: %v\n", pos.File.Filename, startLine, startOffset+1, err)
+			return &RecipeError{pos, nil, previous.Error()}
 		}
-		prev, ok := current.(ContextError)
-		if !ok {
-			break
-		}
-		current = prev.Previous()
 	}
 }

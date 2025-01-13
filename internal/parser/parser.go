@@ -11,6 +11,10 @@ type parseState struct {
 	Tokenizer
 }
 
+func stretch(from, to errors.Positioned) errors.Position {
+	return from.GetPosition().Stretch(to.GetPosition())
+}
+
 func (this *parseState) choice(choices ...func() (ast.Node, *parseError)) (ast.Node, *parseError) {
 	expect := []string{}
 	got := this.Token
@@ -31,14 +35,6 @@ func (this *parseState) choice(choices ...func() (ast.Node, *parseError)) (ast.N
 		}
 	}
 	return nil, &parseError{got, expect}
-}
-
-func (this *parseState) newPos(from, to errors.Positioned) errors.Position {
-	return errors.Position{
-		File:  this.File,
-		Start: from.GetPosition().Start,
-		End:   to.GetPosition().End,
-	}
 }
 
 func (this *parseState) expectToken(name string) (Token, *parseError) {
@@ -114,7 +110,7 @@ tokenLoop:
 	}
 
 	return &ast.LambdaNode{
-		Pos:    this.newPos(begin, end),
+		Pos:    stretch(begin, end),
 		Target: target,
 		Args:   args,
 	}, nil
@@ -158,7 +154,7 @@ tokenLoop:
 	}
 
 	return &ast.DictNode{
-		Pos:   this.newPos(begin, end),
+		Pos:   stretch(begin, end),
 		Items: items,
 	}, nil
 }
@@ -190,7 +186,7 @@ tokenLoop:
 	}
 
 	return &ast.ListNode{
-		Pos:   this.newPos(begin, end),
+		Pos:   stretch(begin, end),
 		Items: items,
 	}, nil
 }
@@ -233,7 +229,7 @@ func (this *parseState) parseOutput() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.OutputNode{
-		Pos:     this.newPos(begin, options),
+		Pos:     stretch(begin, options),
 		Options: options,
 	}, nil
 }
@@ -248,7 +244,7 @@ func (this *parseState) parseImport() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.ImportNode{
-		Pos:    this.newPos(begin, source),
+		Pos:    stretch(begin, source),
 		Source: source,
 	}, nil
 }
@@ -263,7 +259,7 @@ func (this *parseState) parsePanic() (ast.Node, *parseError) {
 		return nil, err
 	}
 	return &ast.PanicNode{
-		Pos:     this.newPos(begin, message),
+		Pos:     stretch(begin, message),
 		Message: message,
 	}, nil
 }
@@ -336,7 +332,7 @@ tokenLoop:
 	}
 
 	return &ast.StringNode{
-		Pos:     this.newPos(begin, end),
+		Pos:     stretch(begin, end),
 		Content: result,
 	}, nil
 }
@@ -379,7 +375,7 @@ tokenLoop:
 				return nil, err
 			}
 			val = &ast.GetterNode{
-				Pos:       this.newPos(begin, ident),
+				Pos:       stretch(begin, ident),
 				Target:    val,
 				Attribute: this.asLiteral(ident),
 			}
@@ -416,7 +412,7 @@ tokenLoop:
 				return nil, err
 			}
 			val = &ast.CallNode{
-				Pos:    this.newPos(begin, end),
+				Pos:    stretch(begin, end),
 				Target: val,
 				Args:   args,
 			}

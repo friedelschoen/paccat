@@ -7,8 +7,8 @@ import (
 
 	"friedelschoen.io/paccat/internal/ast"
 	"friedelschoen.io/paccat/internal/errors"
+	types "friedelschoen.io/paccat/internal/eval"
 	"friedelschoen.io/paccat/internal/parser"
-	"friedelschoen.io/paccat/internal/types"
 )
 
 //go:embed cat.txt
