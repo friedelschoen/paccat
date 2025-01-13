@@ -33,10 +33,10 @@ func (this *parseError) Error() string {
 	slices.Sort(this.expect)
 
 	message := &strings.Builder{}
-	message.WriteString("expected token ")
+	message.WriteString("expected ")
 	for i, token := range this.expect {
 		switch {
-		case i == len(this.expect)-1:
+		case i >= 1 && i == len(this.expect)-1:
 			message.WriteString(" or ")
 		case i >= 1:
 			message.WriteString(", ")
