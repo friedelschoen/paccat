@@ -1,10 +1,13 @@
 output {
+    value = #{
+        hello = "world",
+        foo = [ "bar", "baz" ]
+    },
+
     script = [
         1,
         ''
-            mkdir {{out}}
-            printenv > {{out}}/env
-            echo > {{out}}/depends
+            echo {{value}} > {{out}}
         ''
     ][1]
 }

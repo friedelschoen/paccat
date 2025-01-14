@@ -7,8 +7,8 @@ import (
 
 	"friedelschoen.io/paccat/internal/ast"
 	"friedelschoen.io/paccat/internal/errors"
-	types "friedelschoen.io/paccat/internal/eval"
 	"friedelschoen.io/paccat/internal/parser"
+	"friedelschoen.io/paccat/internal/types"
 )
 
 //go:embed cat.txt
@@ -99,7 +99,7 @@ argloop:
 	fmt.Println(value.Content)
 
 	if printsource {
-		for _, ss := range value.FlatSources() {
+		for ss := range value.FlatSources() {
 			fmt.Printf("%d-%d: %s\n", ss.Start, ss.Start+ss.Len, ss.Value.Node.Name())
 		}
 	}

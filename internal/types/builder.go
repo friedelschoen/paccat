@@ -2,6 +2,8 @@ package types
 
 import (
 	"strings"
+
+	"friedelschoen.io/paccat/internal/ast"
 )
 
 type ValueBuilder struct {
@@ -18,8 +20,9 @@ func (this *ValueBuilder) WriteValue(val *StringValue, quote bool) {
 	this.WriteString(content)
 }
 
-func (this *ValueBuilder) Value() *StringValue {
+func (this *ValueBuilder) Value(node ast.Node) *StringValue {
 	return &StringValue{
+		Node:         node,
 		Content:      this.String(),
 		StringSource: this.sources,
 	}

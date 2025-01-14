@@ -2,20 +2,19 @@ package parser
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	"friedelschoen.io/paccat/internal/errors"
 )
 
 type state string
 
+type testFunc func(string) int
+
 type tokenDefine struct {
 	state       state
 	name        string
 	stateChange stateFunc
-	skip        bool
-	expr        *regexp.Regexp
+	expr        testFunc
 }
 
 type Token struct {
@@ -40,44 +39,6 @@ type Tokenizer struct {
 	Pos   int
 	Valid bool
 	Token Token
-}
-
-func parseTokens(content string) ([]tokenDefine, state) {
-	firstState := state("")
-	tokens := []tokenDefine{}
-
-	for _, line := range strings.Split(content, "\n") {
-		tok := tokenDefine{}
-		elems := strings.SplitN(line, " ", 3)
-		if len(elems) != 3 {
-			continue
-		}
-
-		tok.state = state(strings.TrimSpace(elems[0]))
-		tok.name = strings.TrimSpace(elems[1])
-		expr := strings.TrimSpace(elems[2])
-
-		if len(firstState) == 0 {
-			firstState = tok.state
-		}
-
-		if subs := strings.Split(tok.name, "->"); len(subs) != 1 {
-			tok.name = subs[0]
-			tok.stateChange = statePush(state(subs[1]))
-		} else if strings.HasSuffix(tok.name, "<-") {
-			tok.stateChange = statePop()
-			tok.name = tok.name[:len(tok.name)-2]
-		}
-
-		if tok.name[0] == '.' {
-			tok.skip = true
-			tok.name = tok.name[1:]
-		}
-
-		tok.expr = regexp.MustCompile(fmt.Sprintf("^(%s)", expr))
-		tokens = append(tokens, tok)
-	}
-	return tokens, firstState
 }
 
 func (this *Tokenizer) Next() bool {
@@ -127,18 +88,17 @@ func (this *Tokenizer) Next() bool {
 			continue
 		}
 
-		loc := tok.expr.FindStringIndex(this.File.Content[this.Pos:])
-		if loc == nil {
+		length := tok.expr(this.File.Content[this.Pos:])
+		if length == 0 {
 			continue
 		}
-		length := loc[1] // loc[0] is always 0
 		if tok.stateChange != nil {
 			this.current = tok.stateChange(this.current)
 		}
 		content := this.File.Content[this.Pos : this.Pos+length]
 		this.Pos += length
 
-		if tok.skip {
+		if len(tok.name) == 0 {
 			return this.Next()
 		}
 		this.Token = Token{

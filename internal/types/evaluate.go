@@ -144,11 +144,11 @@ func makeEnviron(deps *StringValue) []string {
 		if dep == nil {
 			continue
 		}
-		for name, pair := range dep.Attributes {
+		for name, value := range dep.Attributes {
 			if prev, ok := environ[name]; ok {
-				environ[name] = fmt.Sprintf("%s:%s/%s", prev, content, pair.Value.Content)
+				environ[name] = fmt.Sprintf("%s:%s/%s", prev, content, value.Content)
 			} else {
-				environ[name] = content + "/" + pair.Value.Content
+				environ[name] = content + "/" + value.Content
 			}
 		}
 	}
@@ -181,20 +181,17 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		if !ok {
 			return nil, errors.NewRecipeError(this.GetPosition(), fmt.Sprintf("target has no attribute `%s`", attr.Content))
 		}
-		return res.Value, nil
+		return res, nil
 	case *ast.DictNode:
-		values := map[string]ValuePair{}
+		values := map[string]*StringValue{}
 		for key, itempair := range this.Items {
-			pair := ValuePair{}
-			pair.Key, err = ctx.Evaluate(itempair.Key)
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluting dict")
 			}
-			pair.Value, err = ctx.Evaluate(itempair.Value)
+			values[key], err = ctx.Evaluate(itempair.Value)
 			if err != nil {
 				return nil, errors.WrapRecipeError(err, this.GetPosition(), "while evaluting dict")
 			}
-			values[key] = pair
 		}
 		return &StringValue{
 			Node:       this,
@@ -202,7 +199,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 		}, nil
 	case *ast.ListNode:
 		builder := ValueBuilder{}
-		attrs := make(map[string]ValuePair)
+		attrs := make(map[string]*StringValue)
 		for i, item := range this.Items {
 			if i > 0 {
 				builder.WriteByte(' ')
@@ -212,18 +209,10 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 				return nil, errors.WrapRecipeError(err, this.Pos, "while evaluating list")
 			}
 			builder.WriteValue(anyValue, true)
-
 			istr := strconv.Itoa(i)
-			attrs[istr] = ValuePair{
-				Key: &StringValue{
-					Node:    asLiteral(istr),
-					Content: istr,
-				},
-				Value: anyValue,
-			}
+			attrs[istr] = anyValue
 		}
-		res := builder.Value()
-		res.Node = this
+		res := builder.Value(this)
 		res.Attributes = attrs
 		return res, nil
 	case *ast.LiteralNode:
@@ -289,7 +278,7 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			}
 		}
 
-		var exports map[string]ValuePair
+		var exports map[string]*StringValue
 		if exportsNode := ctx.Get("exports"); exportsNode != nil {
 			exp, err := ctx.Evaluate(exportsNode)
 			if err != nil {
@@ -334,9 +323,22 @@ func (ctx Scope) Evaluate(currentNode ast.Node) (*StringValue, error) {
 			}
 			builder.WriteValue(value, false)
 		}
-		res := builder.Value()
-		res.Node = this
-		return res, nil
+		return builder.Value(this), nil
+	case *ast.AttrifyNode:
+		target, err := ctx.Evaluate(this.Target)
+		if err != nil {
+			return nil, errors.WrapRecipeError(err, this.Pos, "while attrifying target")
+		}
+		builder := &ValueBuilder{}
+		for key, value := range target.Attributes {
+			if builder.Len() > 0 {
+				builder.WriteByte(' ')
+			}
+			builder.WriteString(key)
+			builder.WriteByte('=')
+			builder.WriteValue(value, true)
+		}
+		return builder.Value(this), nil
 	default:
 		return nil, errors.NewRecipeError(currentNode.GetPosition(), currentNode.Name()+" is not evaluable")
 	}

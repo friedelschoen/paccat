@@ -359,6 +359,21 @@ func (this *parseState) parsePath() (ast.Node, *parseError) {
 	}, nil
 }
 
+func (this *parseState) parseAttrify() (ast.Node, *parseError) {
+	begin, err := this.expectTokenContent("#")
+	if err != nil {
+		return nil, err
+	}
+	target, err := this.parseValue()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.AttrifyNode{
+		Pos:    stretch(begin, target),
+		Target: target,
+	}, nil
+}
+
 func (this *parseState) parseValue() (ast.Node, *parseError) {
 	val, err := this.choice(
 		this.parseString,
@@ -371,6 +386,7 @@ func (this *parseState) parseValue() (ast.Node, *parseError) {
 		this.parseOutput,
 		this.parseImport,
 		this.parsePanic,
+		this.parseAttrify,
 		this.parseReference,
 	)
 	if err != nil {

@@ -11,12 +11,7 @@ type StringValue struct {
 	Node         ast.Node
 	Content      string
 	StringSource []StringSource
-	Attributes   map[string]ValuePair
-}
-
-type ValuePair struct {
-	Key   *StringValue
-	Value *StringValue
+	Attributes   map[string]*StringValue
 }
 
 type StringSource struct {
